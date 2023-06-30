@@ -7,10 +7,12 @@ import 'package:pool_temperature_monitor/widgets.dart';
 
 
 void main() {
-  runApp(FlutterBlueApp());
+  runApp(const FlutterBlueApp());
 }
 
 class FlutterBlueApp extends StatelessWidget {
+  const FlutterBlueApp({ super.key });
+
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
@@ -22,7 +24,7 @@ class FlutterBlueApp extends StatelessWidget {
           builder: (c, snapshot) {
             final state = snapshot.data;
             if (state == BluetoothState.on) {
-              return FindDevicesScreen();
+              return const FindDevicesScreen();
             }
             return BluetoothOffScreen(state: state);
           }),
@@ -63,6 +65,8 @@ class BluetoothOffScreen extends StatelessWidget {
 }
 
 class FindDevicesScreen extends StatelessWidget {
+  const FindDevicesScreen({ super.key });
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(

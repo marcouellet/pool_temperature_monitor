@@ -4,8 +4,8 @@ import 'package:sleek_circular_slider/sleek_circular_slider.dart';
 
 class HomeUI extends StatefulWidget {
   final double temperature;
-  final double humidity;
-  const HomeUI({Key? key, required this.temperature, required this.humidity}) : super(key: key);
+  final double charge;
+  const HomeUI({Key? key, required this.temperature, required this.charge}) : super(key: key);
   @override
   // ignore: library_private_types_in_public_api
   _HomeUIState createState() => _HomeUIState();
@@ -22,8 +22,8 @@ class _HomeUIState extends State<HomeUI> {
               height: 100,
               width: double.infinity,
               child: SvgPicture.asset(
-                "assets/roof.svg",
-                fit: BoxFit.fill,
+                "assets/swimming-pool-swimming-svgrepo-com.svg",
+                fit: BoxFit.fitHeight,
               ),
             ),
             Padding(
@@ -38,12 +38,15 @@ class _HomeUIState extends State<HomeUI> {
                 width: double.infinity,
                 child: Column(
                   children: [
+                    const SizedBox(
+                    height: 20,
+                    ),
                     SleekCircularSlider(
                       appearance: CircularSliderAppearance(
                           customWidths: CustomSliderWidths(
                               trackWidth: 4,
-                              progressBarWidth: 20,
-                              shadowWidth: 40),
+                              progressBarWidth: 10,
+                              shadowWidth: 10),
                           customColors: CustomSliderColors(
                               trackColor: HexColor('#ef6c00'),
                               progressBarColor: HexColor('#ffb74d'),
@@ -55,31 +58,31 @@ class _HomeUIState extends State<HomeUI> {
                                   color: HexColor('#6DA100'),
                                   fontSize: 20,
                                   fontWeight: FontWeight.w600),
-                              bottomLabelText: 'Temp.',
+                              bottomLabelText: 'Température',
                               mainLabelStyle: TextStyle(
                                   color: HexColor('#54826D'),
-                                  fontSize: 30.0,
+                                  fontSize: 20.0,
                                   fontWeight: FontWeight.w600),
                               modifier: (double value) {
                                 return '${widget.temperature} ˚C';
                               }),
                           startAngle: 90,
                           angleRange: 360,
-                          size: 200.0,
+                          size: 160.0,
                           animationEnabled: true),
                       min: 0,
                       max: 100,
                       initialValue: widget.temperature,
                     ),
                     const SizedBox(
-                      height: 50,
+                      height: 40,
                     ),
                     SleekCircularSlider(
                       appearance: CircularSliderAppearance(
                           customWidths: CustomSliderWidths(
                               trackWidth: 4,
-                              progressBarWidth: 20,
-                              shadowWidth: 40),
+                              progressBarWidth: 10,
+                              shadowWidth: 10),
                           customColors: CustomSliderColors(
                               trackColor: HexColor('#0277bd'),
                               progressBarColor: HexColor('#4FC3F7'),
@@ -91,24 +94,24 @@ class _HomeUIState extends State<HomeUI> {
                                   color: HexColor('#6DA100'),
                                   fontSize: 20,
                                   fontWeight: FontWeight.w600),
-                              bottomLabelText: 'Humidity.',
+                              bottomLabelText: 'Charge',
                               mainLabelStyle: TextStyle(
                                   color: HexColor('#54826D'),
-                                  fontSize: 30.0,
+                                  fontSize: 20.0,
                                   fontWeight: FontWeight.w600),
                               modifier: (double value) {
-                                return '${widget.humidity} %';
+                                return '${widget.charge} %';
                               }),
                           startAngle: 90,
                           angleRange: 360,
-                          size: 200.0,
+                          size: 160.0,
                           animationEnabled: true),
                       min: 0,
                       max: 100,
-                      initialValue: widget.humidity,
+                      initialValue: widget.charge,
                     ),
                     const SizedBox(
-                      height: 30,
+                      height: 20,
                     )
                   ],
                 ),

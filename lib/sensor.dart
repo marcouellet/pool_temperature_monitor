@@ -24,7 +24,7 @@ class _SensorPageState extends State<SensorPage> {
   Stream<List<int>>? stream;
   List? _temphumidata;
   double _temp = 0;
-  double _humidity = 0;
+  double _charge = 0;
   @override
   void initState() {
     super.initState();
@@ -160,12 +160,12 @@ class _SensorPageState extends State<SensorPage> {
                               _temp = double.parse('${_temphumidata![0]}');
                             }
                             if (_temphumidata![1] != "nan") {
-                              _humidity = double.parse('${_temphumidata![1]}');
+                              _charge = double.parse('${_temphumidata![1]}');
                             }
                           }
 
                           return HomeUI(
-                            humidity: _humidity,
+                            charge: _charge,
                             temperature: _temp,
                           );
                         } else {
