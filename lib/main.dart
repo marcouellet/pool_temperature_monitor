@@ -4,9 +4,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_blue/flutter_blue.dart';
 import 'package:pool_temperature_monitor/sensor.dart';
 import 'package:pool_temperature_monitor/widgets.dart';
+import 'package:global_configs/global_configs.dart';
 
+import 'config/appSettings.config.dart' as configs;
 
 void main() {
+  GlobalConfigs().loadFromMap(configs.appSettings,  path: 'app.config');
   runApp(const FlutterBlueApp());
 }
 

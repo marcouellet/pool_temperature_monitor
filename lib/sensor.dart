@@ -3,6 +3,7 @@ import 'dart:convert' show utf8;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_blue/flutter_blue.dart';
+import 'package:global_configs/global_configs.dart';
 
 import 'homeui.dart';
 
@@ -17,12 +18,14 @@ class SensorPage extends StatefulWidget {
 
 class _SensorPageState extends State<SensorPage> {
   // ignore: non_constant_identifier_names
-  String service_uuid = "4fafc201-1fb5-459e-8fcc-c5c9c331914b";
+  final String service_uuid = GlobalConfigs().get('app.config.ble_service_uuid'); 
   // ignore: non_constant_identifier_names
-  String charaCteristic_uuid = "beb5483e-36e1-4688-b7f5-ea07361b26a8";
+  final String characteristic_uuid = GlobalConfigs().get('app.config.ble_characteristic_uuid'); 
+  // ignore: non_constant_identifier_names
+  final int disconnect_from_device_duration_seconds = GlobalConfigs().get('app.config.ble_disconnect_from_device_duration_seconds'); 
   bool? isReady;
   Stream<List<int>>? stream;
-  List? _temphumidata;
+  List? _tempchargedata;
   double _temp = 0;
   double _charge = 0;
   @override
@@ -45,7 +48,7 @@ class _SensorPageState extends State<SensorPage> {
       return;
     }
 
-    Timer(const Duration(seconds: 15), () {
+    Timer(Duration(seconds: disconnect_from_device_duration_seconds!), () {
       if (!isReady!) {
         disconnectFromDevice();
         _pop();
@@ -77,7 +80,7 @@ class _SensorPageState extends State<SensorPage> {
     services.forEach((service) {
       if (service.uuid.toString() == service_uuid) {
         service.characteristics.forEach((characteristic) {
-          if (characteristic.uuid.toString() == charaCteristic_uuid) {
+          if (characteristic.uuid.toString() == characteristic_uuid) {
             characteristic.setNotifyValue(!characteristic.isNotifying);
             stream = characteristic.value;
 
@@ -154,13 +157,13 @@ class _SensorPageState extends State<SensorPage> {
                             ConnectionState.active) {
                           // geting data from bluetooth
                           var currentValue = _dataParser(snapshot.data!);
-                          _temphumidata = currentValue.split(",");
-                          if(_temphumidata!.length == 2) {
-                            if (_temphumidata![0] != "nan") {
-                              _temp = double.parse('${_temphumidata![0]}');
+                          _tempchargedata = currentValue.split(",");
+                          if(_tempchargedata!.length == 2) {
+                            if (_tempchargedata![0] != "nan") {
+                              _temp = double.parse('${_tempchargedata![0]}');
                             }
-                            if (_temphumidata![1] != "nan") {
-                              _charge = double.parse('${_temphumidata![1]}');
+                            if (_tempchargedata![1] != "nan") {
+                              _charge = double.parse('${_tempchargedata![1]}');
                             }
                           }
 
