@@ -59,7 +59,7 @@ void setup() {
   Serial.begin(115200);
  dht.begin();
   // Create the BLE Device
-  BLEDevice::init("ESP32 Test");
+  BLEDevice::init("ESP32TM Pool");
 
   // Create the BLE Server
   pServer = BLEDevice::createServer();

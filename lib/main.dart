@@ -2,14 +2,11 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_blue/flutter_blue.dart';
+import 'package:pool_temperature_monitor/config/appsettings.dart';
 import 'package:pool_temperature_monitor/sensor.dart';
 import 'package:pool_temperature_monitor/widgets.dart';
-import 'package:global_configs/global_configs.dart';
-
-import 'config/appSettings.config.dart' as configs;
 
 void main() {
-  GlobalConfigs().loadFromMap(configs.appSettings,  path: 'app.config');
   runApp(const FlutterBlueApp());
 }
 
@@ -68,6 +65,7 @@ class BluetoothOffScreen extends StatelessWidget {
 }
 
 class FindDevicesScreen extends StatelessWidget {
+
   const FindDevicesScreen({ super.key });
 
   @override
@@ -88,6 +86,8 @@ class FindDevicesScreen extends StatelessWidget {
                 initialData: const [],
                 builder: (c, snapshot) => Column(
                   children: snapshot.data!
+                      .where((d) => d.type == BluetoothDeviceType.le && 
+                        d.name.startsWith(AppSettings.bleDeviceNamePrefix))
                       .map((d) => ListTile(
                             title: Text(d.name),
                             subtitle: Text(d.id.toString()),
@@ -109,6 +109,8 @@ class FindDevicesScreen extends StatelessWidget {
                 initialData: const [],
                 builder: (c, snapshot) => Column(
                   children: snapshot.data!
+                      .where((r) => r.device.type == BluetoothDeviceType.le && 
+                        r.device.name.startsWith(AppSettings.bleDeviceNamePrefix))
                       .map(
                         (r) => ScanResultTile(
                           result: r,
