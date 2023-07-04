@@ -1,7 +1,7 @@
 #include <SPI.h>
 #include <TFT_config.h>
-#include <User_Setup_Select.h>
-#include <User_Setup.h>
+#include "User_Setup_Select.h"
+#include "User_Setup.h"
 #include <TFT_eSPI.h>
 
 #include <BLEDevice.h>
