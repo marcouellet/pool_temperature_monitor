@@ -1,13 +1,20 @@
+#include <SPI.h>
+#include <TFT_config.h>
+#include <User_Setup_Select.h>
+#include <User_Setup.h>
+#include <TFT_eSPI.h>
+
 #include <BLEDevice.h>
 #include <BLEServer.h>
 #include <BLEUtils.h>
 #include <BLE2902.h>
 #include <DHT.h>
 
-#define DHTPIN 17     
+#define DHTPIN 27     
 #define DHTTYPE    DHT11
 
 DHT dht(DHTPIN, DHTTYPE);
+TFT_eSPI tft = TFT_eSPI(320, 240);
 BLEServer* pServer = NULL;
 BLECharacteristic* pCharacteristic = NULL;
 bool deviceConnected = false;
@@ -36,19 +43,32 @@ class MyServerCallbacks: public BLEServerCallbacks {
 
 void updateTemp(float temp){
   if(prev_temp != temp){
+   
+    String tempString = "Temperature ";
+    tempString += (int)temp;
+    tempString += " `C";
+    tft.drawString(tempString, tft.width()/6, tft.height() / 3, 4);
     prev_temp = temp;
   }
 }
 
 void updateHumidity(float humidity){
   if(prev_humidity != humidity){
+    String humidityString = "Charge ";
+    humidityString += (int)humidity;
+    humidityString += " %";
+    tft.drawString(humidityString, tft.width()/6, tft.height() / 2, 4);
     prev_humidity = humidity;
   }
 }
 
 void setup() {
   Serial.begin(115200);
- dht.begin();
+  dht.begin();
+  tft.init();
+  tft.fillScreen(TFT_DARKCYAN);
+  tft.setTextColor(TFT_BLACK, TFT_DARKCYAN); 
+
   // Create the BLE Device
   BLEDevice::init("ESP32TM Pool");
 

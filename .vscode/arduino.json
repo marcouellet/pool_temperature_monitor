@@ -1,7 +1,7 @@
 {
-    "configuration": "FlashFreq=80,UploadSpeed=921600,PartitionScheme=default,DebugLevel=none",
-    "board": "esp32:esp32:esp32doit-devkit-v1",
-    "sketch": "esp32code/esp32code.ino",
-    "port": "COM5",
+    "configuration": "PartitionScheme=default,CPUFreq=240,FlashMode=qio,FlashFreq=80,FlashSize=4M,UploadSpeed=921600,DebugLevel=none",
+    "board": "esp32:esp32:ttgo-t1",
+    "sketch": "ttgocode/ttgocode.ino",
+    "port": "COM17",
     "output": "./build"
 }
