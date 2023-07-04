@@ -10,7 +10,9 @@
 #include <BLE2902.h>
 #include <DHT.h>
 
-#define DHTPIN 27     
+#define BUTTON_PIN_BITMASK 0x000000001 // 2^1 in hex
+
+#define DHTPIN 27 
 #define DHTTYPE    DHT11
 
 DHT dht(DHTPIN, DHTTYPE);
@@ -19,9 +21,14 @@ BLEServer* pServer = NULL;
 BLECharacteristic* pCharacteristic = NULL;
 bool deviceConnected = false;
 bool oldDeviceConnected = false;
+bool deviceSleeping = false;
+bool sensorsValuesNotified = false;
 uint32_t value = 0;
-float prev_temp;
-float prev_humidity;
+float temperature;
+float charge;
+
+#define uS_TO_S_FACTOR 1000000ULL  /* Conversion factor for micro seconds to seconds */
+#define TIME_TO_SLEEP  60        /* Time ESP32 will go to sleep (in seconds) */
 
 // See the following for generating UUIDs:
 // https://www.uuidgenerator.net/
@@ -41,34 +48,27 @@ class MyServerCallbacks: public BLEServerCallbacks {
     }
 };
 
-void updateTemp(float temp){
-  if(prev_temp != temp){
-   
-    String tempString = "Temperature ";
-    tempString += (int)temp;
-    tempString += " `C";
-    tft.drawString(tempString, tft.width()/6, tft.height() / 3, 4);
-    prev_temp = temp;
-  }
-}
-
-void updateHumidity(float humidity){
-  if(prev_humidity != humidity){
-    String humidityString = "Charge ";
-    humidityString += (int)humidity;
-    humidityString += " %";
-    tft.drawString(humidityString, tft.width()/6, tft.height() / 2, 4);
-    prev_humidity = humidity;
-  }
-}
-
-void setup() {
-  Serial.begin(115200);
-  dht.begin();
+void refreshDisplay() {
   tft.init();
   tft.fillScreen(TFT_DARKCYAN);
   tft.setTextColor(TFT_BLACK, TFT_DARKCYAN); 
 
+  String temperatureString = "Temperature ";
+  temperatureString += (int) temperature;
+  temperatureString += " `C";
+  tft.drawString(temperatureString, tft.width()/6, tft.height() / 3, 4);
+
+  String chargeString = "Charge ";
+  chargeString += (int) charge;
+  chargeString += " %";
+  tft.drawString(chargeString, tft.width()/6, tft.height() / 2, 4);
+}
+
+void setupMonitors() {
+  dht.begin();
+}
+
+void setupBleService() {
   // Create the BLE Device
   BLEDevice::init("ESP32TM Pool");
 
@@ -104,37 +104,52 @@ void setup() {
   Serial.println("Waiting a client connection to notify...");
 }
 
-void loop() {
+void readSensors() {
+  temperature = dht.readTemperature();
+  charge = dht.readHumidity();
+}
 
-updateTemp(dht.readTemperature());
-updateHumidity(dht.readHumidity());
+void deepSleep() {
+    esp_sleep_enable_ext0_wakeup(GPIO_NUM_0,0); //1 = High, 0 = Low
+    esp_sleep_enable_timer_wakeup(TIME_TO_SLEEP * uS_TO_S_FACTOR);
+    esp_deep_sleep_start();
+}
 
-
-    // notify changed value
-    if (deviceConnected) {
-        String str = "";
-      str += prev_temp;
-      str += ",";
-      str += prev_humidity;
+void notifySensorsValues() {
+  if (deviceConnected && !sensorsValuesNotified) {
+    String str = "";
+    str += temperature;
+    str += ",";
+    str += charge;
     pCharacteristic->setValue((char*)str.c_str());
     pCharacteristic->notify();
-    
-  Serial.println(prev_humidity);
-  Serial.println(F("%  Temperature: "));
-  Serial.println(prev_temp);
- // bluetooth stack will go into congestion, if too many packets are sent, in 6 hours test i was able to go as low as 3ms
-    }
-    // disconnecting Serial.println("start advertising");
-        oldDeviceConnected = deviceConnected;
-    if (!deviceConnected && oldDeviceConnected) {
-        delay(500); // give the bluetooth stack the chance to get things ready
-        pServer->startAdvertising(); // restart advertising
-       
-    }
-    // connecting
-    if (deviceConnected && !oldDeviceConnected) {
-        // do stuff here on connecting
-        oldDeviceConnected = deviceConnected;
-    }
+    sensorsValuesNotified = true;
+  }
+}
 
+void setup() {
+  Serial.begin(115200);
+  
+  setupMonitors();
+  readSensors();
+
+  esp_sleep_wakeup_cause_t wakeup_reason = esp_sleep_get_wakeup_cause();
+
+  if (wakeup_reason == ESP_SLEEP_WAKEUP_EXT0) {
+    Serial.println("Wakeup caused by external signal using RTC_IO"); 
+    refreshDisplay();
+    sleep(5); // 5 seconds
+  }
+
+  if (wakeup_reason == ESP_SLEEP_WAKEUP_TIMER) {
+    Serial.println("Wakeup caused by timer"); 
+    setupBleService();
+    notifySensorsValues();
+    sleep(30); // 30 seconds
+  }
+
+  deepSleep();
+}
+
+void loop() {
 }
