@@ -17,18 +17,15 @@
 
 DHT dht(DHTPIN, DHTTYPE);
 TFT_eSPI tft = TFT_eSPI(320, 240);
+hw_timer_t * timer = NULL;
 BLEServer* pServer = NULL;
 BLECharacteristic* pCharacteristic = NULL;
 bool deviceConnected = false;
-bool oldDeviceConnected = false;
-bool deviceSleeping = false;
-bool sensorsValuesNotified = false;
-uint32_t value = 0;
 float temperature;
 float charge;
 
 #define uS_TO_S_FACTOR 1000000ULL  /* Conversion factor for micro seconds to seconds */
-#define TIME_TO_SLEEP  60        /* Time ESP32 will go to sleep (in seconds) */
+#define TIME_TO_SLEEP  20        /* Time ESP32 will go to sleep (in seconds) */
 
 // See the following for generating UUIDs:
 // https://www.uuidgenerator.net/
@@ -36,14 +33,15 @@ float charge;
 #define SERVICE_UUID        "4fafc201-1fb5-459e-8fcc-c5c9c331914b"
 #define CHARACTERISTIC_UUID "beb5483e-36e1-4688-b7f5-ea07361b26a8"
 
-
 class MyServerCallbacks: public BLEServerCallbacks {
     void onConnect(BLEServer* pServer) {
+      Serial.println("Device connected"); 
       deviceConnected = true;
       BLEDevice::startAdvertising();
     };
 
     void onDisconnect(BLEServer* pServer) {
+      Serial.println("Device disconnected"); 
       deviceConnected = false;
     }
 };
@@ -64,8 +62,20 @@ void refreshDisplay() {
   tft.drawString(chargeString, tft.width()/6, tft.height() / 2, 4);
 }
 
+void notificationTimeEnded() {
+  Serial.println("Device notification timeout"); 
+  deepSleep();
+}
+
+void setupNotificationTimer(int seconds) {
+  timer = timerBegin(0, 80*seconds, true);
+  // Attach onTimer function to our timer.
+  timerAttachInterrupt(timer, &notificationTimeEnded, true);
+}
+
 void setupMonitors() {
   dht.begin();
+  delay(500);
 }
 
 void setupBleService() {
@@ -110,21 +120,23 @@ void readSensors() {
 }
 
 void deepSleep() {
+    Serial.println("Going to deep sleep"); 
     esp_sleep_enable_ext0_wakeup(GPIO_NUM_0,0); //1 = High, 0 = Low
     esp_sleep_enable_timer_wakeup(TIME_TO_SLEEP * uS_TO_S_FACTOR);
     esp_deep_sleep_start();
 }
 
 void notifySensorsValues() {
-  if (deviceConnected && !sensorsValuesNotified) {
     String str = "";
     str += temperature;
     str += ",";
     str += charge;
+    Serial.print("Notify values: temperature="); 
+    Serial.print((int) temperature);
+    Serial.print(" charge=");
+    Serial.println((int) charge);
     pCharacteristic->setValue((char*)str.c_str());
     pCharacteristic->notify();
-    sensorsValuesNotified = true;
-  }
 }
 
 void setup() {
@@ -133,23 +145,32 @@ void setup() {
   setupMonitors();
   readSensors();
 
-  esp_sleep_wakeup_cause_t wakeup_reason = esp_sleep_get_wakeup_cause();
+  esp_sleep_wakeup_cause_t wakeup_cause = esp_sleep_get_wakeup_cause();
 
-  if (wakeup_reason == ESP_SLEEP_WAKEUP_EXT0) {
+  if (wakeup_cause == ESP_SLEEP_WAKEUP_EXT0) {
     Serial.println("Wakeup caused by external signal using RTC_IO"); 
     refreshDisplay();
-    sleep(5); // 5 seconds
-  }
-
-  if (wakeup_reason == ESP_SLEEP_WAKEUP_TIMER) {
+    delay(5000); // 5 seconds
+    deepSleep();
+  } else if (/*wakeup_reason == ESP_SLEEP_WAKEUP_UNDEFINED || */ wakeup_cause == ESP_SLEEP_WAKEUP_TIMER) {
     Serial.println("Wakeup caused by timer"); 
-    setupBleService();
-    notifySensorsValues();
-    sleep(30); // 30 seconds
+    setupNotificationTimer(10); //10 seconds
+    setupBleService(); 
+  } else {
+    Serial.print("Unmanaged wakeup cause "); 
+    Serial.println((int) wakeup_cause);
+    deepSleep();
   }
-
-  deepSleep();
 }
 
 void loop() {
+    if (deviceConnected) {
+        Serial.println("Device notified"); 
+        notifySensorsValues();
+        delay(500); // give the bluetooth stack the chance to get things ready
+        pServer->startAdvertising(); // restart advertising   
+        delay(5000); // 5 seconds
+        timerEnd(timer);
+        deepSleep();
+    }
 }
