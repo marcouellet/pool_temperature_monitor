@@ -20,7 +20,12 @@ TFT_eSPI tft = TFT_eSPI(320, 240);
 hw_timer_t * timer = NULL;
 BLEServer* pServer = NULL;
 BLECharacteristic* pCharacteristic = NULL;
+uint8_t timer_id = 0;
+uint16_t prescaler = 80; // Between 0 and 65 535
+int threshold = 1000000; // 64 bits value (limited to int size of 32bits)
 bool deviceConnected = false;
+bool notificationTimeOut = false;
+bool notificationDone = false;
 float temperature;
 float charge;
 
@@ -63,14 +68,17 @@ void refreshDisplay() {
 }
 
 void notificationTimeEnded() {
-  Serial.println("Device notification timeout"); 
-  deepSleep();
+  notificationTimeOut = true;
 }
 
 void setupNotificationTimer(int seconds) {
-  timer = timerBegin(0, 80*seconds, true);
+  timer = timerBegin(timer_id, prescaler, true);
   // Attach onTimer function to our timer.
   timerAttachInterrupt(timer, &notificationTimeEnded, true);
+  timerAlarmWrite(timer, threshold*seconds, true);
+  timerAlarmEnable(timer);
+  notificationDone = false;
+  notificationTimeOut = false;
 }
 
 void setupMonitors() {
@@ -170,6 +178,14 @@ void loop() {
         delay(500); // give the bluetooth stack the chance to get things ready
         pServer->startAdvertising(); // restart advertising   
         delay(5000); // 5 seconds
+        notificationDone = true;
+    }
+
+    if (notificationTimeOut) {
+      Serial.println("Device notification timeout");
+    }
+
+    if (notificationDone || notificationTimeOut) {
         timerEnd(timer);
         deepSleep();
     }
