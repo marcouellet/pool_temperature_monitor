@@ -5,7 +5,6 @@ class AppSettings {
   static const String bleDeviceNamePrefix = "ESP32TM";   
   static const int bleDisconnectFromDeviceDurationSeconds = 15;
   static const int bleDeviceScanDurationSeconds = 5;
-  //static const int bleConnectToDeviceDurationSeconds = 10;
   static const int bleLookupForDeviceRetryDelaySeconds = 5;
   static const int bleLookupForDeviceRetriesMaximum = 6;
 }

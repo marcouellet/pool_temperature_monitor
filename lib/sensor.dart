@@ -19,7 +19,9 @@ class SensorPage extends StatefulWidget {
 class _SensorPageState extends State<SensorPage> {
   late bool isReady;
   late bool isLookingForDevice;
+  late bool isDeviceConnected;
   late List _sleeptempchargedata;
+  StreamSubscription<BluetoothDeviceState>? deviceStateSubscription;
   BluetoothDevice? device;
   Stream<List<int>>? stream;
 
@@ -50,9 +52,9 @@ class _SensorPageState extends State<SensorPage> {
   Future<void> lookupForDevice() async {
     setState(() { isLookingForDevice = true; });
     device = await BleUtils.lookupForDevice();
-    //monitorDeviceState();
     if (device != null) {
       await device!.connect();
+      isDeviceConnected = true;
       monitorDeviceState();
     } else {
       setState(() { isReady = false; });
@@ -60,10 +62,19 @@ class _SensorPageState extends State<SensorPage> {
     setState(() { isLookingForDevice = false; });
   }
 
+  void cancelDeviceStateMonitoring() {
+    if (deviceStateSubscription != null) {
+      deviceStateSubscription!.cancel();
+      deviceStateSubscription = null;
+    }
+  }
+
   void monitorDeviceState() async {
-    device!.state.listen((event) async {
+    cancelDeviceStateMonitoring();
+    deviceStateSubscription = device!.state.listen((event) async {
       if (event == BluetoothDeviceState.disconnected) {
-        await device!.disconnect();
+        cancelDeviceStateMonitoring();
+        await disconnectDevice();
         tryLookupForDevices();
       }
       if (event == BluetoothDeviceState.connected) {
@@ -78,6 +89,13 @@ class _SensorPageState extends State<SensorPage> {
       '${device!.name.substring(AppSettings.bleDeviceNamePrefix.length)} Temperature Sensor';
   }
 
+  disconnectDevice() async {
+    if (isDeviceConnected) {
+      await device!.disconnect();
+      isDeviceConnected = false;
+    }
+  }
+
   disconnectFromDevice() {
     device!.disconnect();
     isReady = false;
@@ -89,8 +107,7 @@ class _SensorPageState extends State<SensorPage> {
       if (service.uuid.toString() == AppSettings.bleServiceUUID) {
         service.characteristics.forEach((characteristic) {
           if (characteristic.uuid.toString() == AppSettings.bleCharacteristicsUUID) {
-            characteristic.setNotifyValue(!characteristic.isNotifying);
-
+            characteristic.setNotifyValue(true);
             setState(() {
               stream = characteristic.value;
               isReady = true;
@@ -165,14 +182,7 @@ class _SensorPageState extends State<SensorPage> {
                       if (_sleeptempchargedata[2] != "nan") {
                         _charge = double.parse('${_sleeptempchargedata[2]}');
                       }
-                    } else if(_sleeptempchargedata.length == 2) {
-                      if (_sleeptempchargedata[0] != "nan") {
-                        _temp = double.parse('${_sleeptempchargedata[0]}');
-                      }
-                      if (_sleeptempchargedata[1] != "nan") {
-                        _charge = double.parse('${_sleeptempchargedata[1]}');
-                      }
-                    }
+                    } 
                   }
                   return HomeUI(
                       charge: _charge,

@@ -49,25 +49,12 @@ class BleUtils {
     _devicesList = <BluetoothDevice>[];  
     _isScanCancelled = false;
 
-    await _flutterBlue.startScan(timeout: const Duration(seconds: AppSettings.bleDeviceScanDurationSeconds));   
-    //await endSubsriptions();           
+    await _flutterBlue.startScan(timeout: const Duration(seconds: AppSettings.bleDeviceScanDurationSeconds));              
   }
 
   static Future<void> cancelScanForDevices() async {
     _isScanCancelled = true;
-    //await endSubsriptions();
   }
-
-  // static Future<void> endSubsriptions() async {
-  //       if (_connectedDevicesStreamSubscription != null) {
-  //     await _connectedDevicesStreamSubscription!.cancel();
-  //     _connectedDevicesStreamSubscription = null;
-  //   }
-  //   if (_scanResultsStreamSubscription != null) {
-  //     await _scanResultsStreamSubscription!.cancel();
-  //     _scanResultsStreamSubscription = null;
-  //   }
-  // }
 
   static bool isScanCancelled() {
     return _isScanCancelled;
