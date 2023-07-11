@@ -17,22 +17,29 @@
 
 DHT dht(DHTPIN, DHTTYPE);
 TFT_eSPI tft = TFT_eSPI(320, 240);
-hw_timer_t * timer = NULL;
+hw_timer_t * notificationTimer = NULL;
+hw_timer_t * delayBeforeSleepTimer = NULL;
 BLEServer* pServer = NULL;
 BLEService *pService = NULL;
 BLECharacteristic* pCharacteristic = NULL;
-uint8_t timer_id = 0;
+uint8_t notificationTimerId = 0;
+uint8_t delayBeforeSleepTimerId = 1;
 uint16_t prescaler = 80; // Between 0 and 65 535
 uint32_t cpu_freq_mhz = 80; //reduce to 80 mhz (default is 240mhz)
 int threshold = 1000000; // 64 bits value (limited to int size of 32bits)
 bool deviceConnected = false;
 bool notificationTimeOut = false;
-bool notificationDone = false;
+bool notificationRepeatCount = 0;
+bool deepSleepRequested = false;
+bool deepSleepReady = false;
 float temperature;
 float charge;
 
-#define uS_TO_S_FACTOR 1000000ULL  /* Conversion factor for micro seconds to seconds */
-#define TIME_TO_SLEEP  20        /* Time ESP32 will go to sleep (in seconds) */
+#define uS_TO_S_FACTOR 1000000ULL         /* Conversion factor for micro seconds to seconds */
+#define TIME_TO_SLEEP  60                 /* Time ESP32 will go to sleep (in seconds) */
+#define TIME_TO_NOTIFY  15                /* Time ESP32 stay awaken to send notification */
+#define TIME_TO_WAIT_BEFORE_SLEEP  5      /* Time ESP32 stay awaken to send notification */
+#define NOTIFICATION_REPEAT_COUNT_MAX  2  /* Time ESP32 stay awaken to send notification */
 
 // See the following for generating UUIDs:
 // https://www.uuidgenerator.net/
@@ -71,16 +78,55 @@ void refreshDisplay() {
 
 void notificationTimeEnded() {
   notificationTimeOut = true;
+  //Serial.println("Device notification timeout");
+  cancelNotificationTimer();
+}
+
+void cancelNotificationTimer() {
+  if (notificationTimer != NULL) {
+      timerEnd(notificationTimer);
+      notificationTimer = NULL;
+  }
+}
+
+void setupNotification() {
+  setupNotificationTimer(TIME_TO_NOTIFY);
+  notificationRepeatCount = 0;
 }
 
 void setupNotificationTimer(int seconds) {
-  timer = timerBegin(timer_id, prescaler, true);
+  cancelNotificationTimer(); // make sure no timer active
+  notificationTimer = timerBegin(notificationTimerId, prescaler, true);
   // Attach onTimer function to our timer.
-  timerAttachInterrupt(timer, &notificationTimeEnded, true);
-  timerAlarmWrite(timer, threshold*seconds, true);
-  timerAlarmEnable(timer);
-  notificationDone = false;
+  timerAttachInterrupt(notificationTimer, &notificationTimeEnded, true);
+  timerAlarmWrite(notificationTimer, threshold*seconds, true);
+  timerAlarmEnable(notificationTimer);
   notificationTimeOut = false;
+}
+
+void delayBeforeSleepTimerEnded() {
+  //Serial.println("Delay before deep sleep ended");
+  cancelDelayBeforeSleepTimer();
+  deepSleepReady = true;
+}
+
+void cancelDelayBeforeSleepTimer() {
+  if (delayBeforeSleepTimer != NULL) {
+      timerEnd(delayBeforeSleepTimer);
+      delayBeforeSleepTimer = NULL;
+  }
+}
+
+void setupDelayBeforeSleepTimer(int seconds) {
+  cancelDelayBeforeSleepTimer(); // make sure no timer active
+  //Serial.println("Setting Deep sleep timer");
+  delayBeforeSleepTimer = timerBegin(delayBeforeSleepTimerId, prescaler, true);
+  //Serial.println("Created Deep sleep timer");
+  // Attach onTimer function to our timer.
+  timerAttachInterrupt(delayBeforeSleepTimer, &delayBeforeSleepTimerEnded, true);
+  timerAlarmWrite(delayBeforeSleepTimer, threshold*seconds, true);
+  timerAlarmEnable(delayBeforeSleepTimer);
+  //Serial.println("Deep sleep timer is set");
 }
 
 void setupSensors() {
@@ -130,18 +176,16 @@ void readSensors() {
 }
 
 void deepSleep() {
-    Serial.println("Going to deep sleep"); 
-    if (pService) {
-      pService->stop();
-      delay(500);
-      pServer->removeService(pService);
-      pService = NULL;
-    }
+    deepSleepRequested = false;
+    deepSleepReady = false;
+    Serial.println("Prepare to deep sleep"); 
+
     BLEDevice::stopAdvertising();
-    pServer = NULL;
+    Serial.println("Stopped advertising");
 
     esp_sleep_enable_ext0_wakeup(GPIO_NUM_0,0); //1 = High, 0 = Low
     esp_sleep_enable_timer_wakeup(TIME_TO_SLEEP * uS_TO_S_FACTOR);
+    Serial.println("Going to deep sleep");
     esp_deep_sleep_start();
 }
 
@@ -183,27 +227,29 @@ void setup() {
     if (wakeup_cause == ESP_SLEEP_WAKEUP_TIMER) {
       Serial.println("Wakeup caused by timer"); 
     }
-    setupNotificationTimer(10); //10 seconds
+    setupNotification();
     setupBleService(); 
   } 
 }
 
 void loop() {
-    if (deviceConnected) {
-        Serial.println("Device notified"); 
+    if (deviceConnected &&  !notificationTimeOut && notificationRepeatCount++ < NOTIFICATION_REPEAT_COUNT_MAX) { 
         notifySensorsValues();
-        delay(500); // give the bluetooth stack the chance to get things ready
-        //pServer->startAdvertising(); // restart advertising   
-        delay(2000); // 5 seconds
-        notificationDone = true;
+        delay(5000); // give the bluetooth stack the chance to get things ready
+        Serial.println("Device notified");
     }
 
-    if (notificationTimeOut) {
-      Serial.println("Device notification timeout");
+    if (notificationTimeOut || notificationRepeatCount == NOTIFICATION_REPEAT_COUNT_MAX) {
+        cancelNotificationTimer();
+
+        if (!deepSleepRequested) {
+          setupDelayBeforeSleepTimer(TIME_TO_WAIT_BEFORE_SLEEP); 
+          deepSleepRequested = true;
+          Serial.println("Deep sleep requested");
+        }
     }
 
-    if (notificationDone || notificationTimeOut) {
-        timerEnd(timer);
+    if (deepSleepReady) {
         deepSleep();
     }
 }
