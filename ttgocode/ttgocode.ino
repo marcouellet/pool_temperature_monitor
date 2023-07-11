@@ -35,11 +35,16 @@ bool deepSleepReady = false;
 float temperature;
 float charge;
 
+// N.B. All delays are in seconds
+
 #define uS_TO_S_FACTOR 1000000ULL         /* Conversion factor for micro seconds to seconds */
-#define TIME_TO_SLEEP  60                 /* Time ESP32 will go to sleep (in seconds) */
-#define TIME_TO_NOTIFY  15                /* Time ESP32 stay awaken to send notification */
-#define TIME_TO_WAIT_BEFORE_SLEEP  5      /* Time ESP32 stay awaken to send notification */
-#define NOTIFICATION_REPEAT_COUNT_MAX  2  /* Time ESP32 stay awaken to send notification */
+#define TIME_TO_SLEEP  60                 /* Time ESP32 will stay in deep sleep before awakening (in seconds) */
+#define TIME_TO_NOTIFY  15                /* Time ESP32 stay awaken to send notifications */
+#define TIME_TO_WAIT_BEFORE_SLEEP  5      /* Time ESP32 stay awaken before gooing to deep sleep after notification period */
+#define DELAY_BETWEEN_NOTIFICATIONS 5     /* Wait time between each notification send during notification period */
+#define DELAY_TO_DISPLAY_SCREEN 5         /* Time to keep display active */
+#define NOTIFICATION_REPEAT_COUNT_MAX  2  /* Max notifications to send during notification period */
+#define SETUP_SENSORS_DELAY  0.5          /* Max notifications to send during notification period */
 
 // See the following for generating UUIDs:
 // https://www.uuidgenerator.net/
@@ -78,7 +83,6 @@ void refreshDisplay() {
 
 void notificationTimeEnded() {
   notificationTimeOut = true;
-  //Serial.println("Device notification timeout");
   cancelNotificationTimer();
 }
 
@@ -105,7 +109,6 @@ void setupNotificationTimer(int seconds) {
 }
 
 void delayBeforeSleepTimerEnded() {
-  //Serial.println("Delay before deep sleep ended");
   cancelDelayBeforeSleepTimer();
   deepSleepReady = true;
 }
@@ -119,19 +122,15 @@ void cancelDelayBeforeSleepTimer() {
 
 void setupDelayBeforeSleepTimer(int seconds) {
   cancelDelayBeforeSleepTimer(); // make sure no timer active
-  //Serial.println("Setting Deep sleep timer");
   delayBeforeSleepTimer = timerBegin(delayBeforeSleepTimerId, prescaler, true);
-  //Serial.println("Created Deep sleep timer");
-  // Attach onTimer function to our timer.
   timerAttachInterrupt(delayBeforeSleepTimer, &delayBeforeSleepTimerEnded, true);
   timerAlarmWrite(delayBeforeSleepTimer, threshold*seconds, true);
   timerAlarmEnable(delayBeforeSleepTimer);
-  //Serial.println("Deep sleep timer is set");
 }
 
 void setupSensors() {
   dht.begin();
-  delay(1000);
+  delay(1000*SETUP_SENSORS_DELAY);
 }
 
 void setupBleService() {
@@ -221,7 +220,7 @@ void setup() {
   if (wakeup_cause == ESP_SLEEP_WAKEUP_EXT0) {
     Serial.println("Wakeup caused by external signal using RTC_IO"); 
     refreshDisplay();
-    delay(5000); // 5 seconds
+    delay(1000*DELAY_TO_DISPLAY_SCREEN); // 5 seconds
     deepSleep();
   } else {
     if (wakeup_cause == ESP_SLEEP_WAKEUP_TIMER) {
@@ -233,9 +232,9 @@ void setup() {
 }
 
 void loop() {
-    if (deviceConnected &&  !notificationTimeOut && notificationRepeatCount++ < NOTIFICATION_REPEAT_COUNT_MAX) { 
+    if (deviceConnected && /* !notificationTimeOut && */ notificationRepeatCount++ < NOTIFICATION_REPEAT_COUNT_MAX) { 
         notifySensorsValues();
-        delay(5000); // give the bluetooth stack the chance to get things ready
+        delay(1000*DELAY_BETWEEN_NOTIFICATIONS); // give the bluetooth stack the chance to get things ready
         Serial.println("Device notified");
     }
 
