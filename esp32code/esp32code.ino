@@ -4,7 +4,7 @@
 #include <BLE2902.h>
 #include <DHT.h>
 
-#define DHTPIN 17     
+#define DHTPIN 27      
 #define DHTTYPE    DHT11
 
 DHT dht(DHTPIN, DHTTYPE);
@@ -12,7 +12,8 @@ BLEServer* pServer = NULL;
 BLECharacteristic* pCharacteristic = NULL;
 bool deviceConnected = false;
 bool oldDeviceConnected = false;
-uint32_t value = 0;
+bool notifyValueChanged = true;
+bool traceDHTValue = true;
 float prev_temp;
 float prev_humidity;
 
@@ -35,14 +36,24 @@ class MyServerCallbacks: public BLEServerCallbacks {
 };
 
 void updateTemp(float temp){
+  if (traceDHTValue) {
+    Serial.println(F("DHT %  Temperature: "));
+    Serial.println(temp);
+  }
   if(prev_temp != temp){
     prev_temp = temp;
+    notifyValueChanged = true;
   }
 }
 
 void updateHumidity(float humidity){
+  if (traceDHTValue) {
+    Serial.println(F("DHT %  Humidity: "));
+    Serial.println(humidity);
+  }
   if(prev_humidity != humidity){
     prev_humidity = humidity;
+    notifyValueChanged = true;
   }
 }
 
@@ -86,18 +97,21 @@ void setup() {
 
 void loop() {
 
+  delay(2000);
+
 updateTemp(dht.readTemperature());
 updateHumidity(dht.readHumidity());
 
 
     // notify changed value
-    if (deviceConnected) {
+    if (deviceConnected && notifyValueChanged) {
         String str = "";
       str += prev_temp;
       str += ",";
       str += prev_humidity;
     pCharacteristic->setValue((char*)str.c_str());
     pCharacteristic->notify();
+    notifyValueChanged = false;
     
   Serial.println(prev_humidity);
   Serial.println(F("%  Temperature: "));
@@ -109,6 +123,7 @@ updateHumidity(dht.readHumidity());
     if (!deviceConnected && oldDeviceConnected) {
         delay(500); // give the bluetooth stack the chance to get things ready
         pServer->startAdvertising(); // restart advertising
+        Serial.println(F("Advertizing restarted"));
        
     }
     // connecting
