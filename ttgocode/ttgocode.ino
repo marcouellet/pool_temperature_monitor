@@ -32,8 +32,8 @@ bool notificationTimeOut = false;
 bool notificationRepeatCount = 0;
 bool deepSleepRequested = false;
 bool deepSleepReady = false;
-float temperature;
-float charge;
+int temperature;
+int charge;
 
 // N.B. All delays are in seconds
 
@@ -71,12 +71,12 @@ void refreshDisplay() {
   tft.setTextColor(TFT_BLACK, TFT_DARKCYAN); 
 
   String temperatureString = "Temperature ";
-  temperatureString += (int) temperature;
+  temperatureString += temperature;
   temperatureString += " `C";
   tft.drawString(temperatureString, tft.width()/6, tft.height() / 3, 4);
 
   String chargeString = "Charge ";
-  chargeString += (int) charge;
+  chargeString += charge;
   chargeString += " %";
   tft.drawString(chargeString, tft.width()/6, tft.height() / 2, 4);
 }
@@ -192,9 +192,9 @@ void printSensorsValues() {
     Serial.print("Notify values: sleep delay=");
     Serial.print(TIME_TO_SLEEP); 
     Serial.print(" temperature=");
-    Serial.print((int) temperature);
+    Serial.print(temperature);
     Serial.print(" charge=");
-    Serial.println((int) charge);
+    Serial.println(charge);
 }
 void notifySensorsValues() {
     String str = "";

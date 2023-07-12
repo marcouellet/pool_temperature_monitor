@@ -25,8 +25,8 @@ class _SensorPageState extends State<SensorPage> {
   BluetoothDevice? device;
   Stream<List<int>>? stream;
 
-  double _temp = 0;
-  double _charge = 0;
+  int _temp = 0;
+  int _charge = 0;
 
   @override
   void initState()  {
@@ -177,10 +177,10 @@ class _SensorPageState extends State<SensorPage> {
                         BleUtils.setSleepDelay(int.parse('${_sleeptempchargedata[0]}'));
                       }
                       if (_sleeptempchargedata[1] != "nan") {
-                        _temp = double.parse('${_sleeptempchargedata[1]}');
+                        _temp = int.parse('${_sleeptempchargedata[1]}');
                       }
                       if (_sleeptempchargedata[2] != "nan") {
-                        _charge = double.parse('${_sleeptempchargedata[2]}');
+                        _charge = int.parse('${_sleeptempchargedata[2]}');
                       }
                     } 
                   }

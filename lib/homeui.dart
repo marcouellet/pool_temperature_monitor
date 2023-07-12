@@ -3,8 +3,8 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'package:sleek_circular_slider/sleek_circular_slider.dart';
 
 class HomeUI extends StatefulWidget {
-  final double temperature;
-  final double charge;
+  final int temperature;
+  final int charge;
   const HomeUI({Key? key, required this.temperature, required this.charge}) : super(key: key);
   @override
   // ignore: library_private_types_in_public_api
@@ -72,7 +72,7 @@ class _HomeUIState extends State<HomeUI> {
                           animationEnabled: true),
                       min: 0,
                       max: 100,
-                      initialValue: widget.temperature,
+                      initialValue: widget.temperature.toDouble(),
                     ),
                     const SizedBox(
                       height: 40,
@@ -108,7 +108,7 @@ class _HomeUIState extends State<HomeUI> {
                           animationEnabled: true),
                       min: 0,
                       max: 100,
-                      initialValue: widget.charge,
+                      initialValue: widget.charge.toDouble(),
                     ),
                     const SizedBox(
                       height: 20,

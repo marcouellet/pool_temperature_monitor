@@ -41,7 +41,7 @@ class BleUtils {
   }
 
   static void setSleepDelay(int delay) {
-    _sleepdelay = delay;
+    _sleepdelay = (delay / 2).round();
   }
 
   static Future<void> scanForDevices() async {
@@ -80,10 +80,14 @@ class BleUtils {
 
     while (device == null && !isScanCancelled() && lookupRetries < AppSettings.bleLookupForDeviceRetriesMaximum) {
       if (lookupRetries == 0) {
-        device = await scanForDeviceName(AppSettings.bleDeviceName);
+        await Future.delayed(Duration(seconds: _sleepdelay), () async {
+          if (!isScanCancelled()) {
+            device = await scanForDeviceName(AppSettings.bleDeviceName);
+          }
+        });
       } else 
       {
-        await Future.delayed(Duration(seconds: _sleepdelay), () async {
+        await Future.delayed(const Duration(seconds: AppSettings.bleLookupForDeviceRetryDelaySeconds), () async {
           if (!isScanCancelled()) {
             device = await scanForDeviceName(AppSettings.bleDeviceName);
           }
