@@ -220,7 +220,7 @@ void setup() {
   if (wakeup_cause == ESP_SLEEP_WAKEUP_EXT0) {
     Serial.println("Wakeup caused by external signal using RTC_IO"); 
     refreshDisplay();
-    delay(1000*DELAY_TO_DISPLAY_SCREEN); // 5 seconds
+    delay(1000*DELAY_TO_DISPLAY_SCREEN); 
     deepSleep();
   } else {
     if (wakeup_cause == ESP_SLEEP_WAKEUP_TIMER) {
@@ -232,7 +232,7 @@ void setup() {
 }
 
 void loop() {
-    if (deviceConnected && /* !notificationTimeOut && */ notificationRepeatCount++ < NOTIFICATION_REPEAT_COUNT_MAX) { 
+    if (deviceConnected && notificationRepeatCount++ < NOTIFICATION_REPEAT_COUNT_MAX) { 
         notifySensorsValues();
         delay(1000*DELAY_BETWEEN_NOTIFICATIONS); // give the bluetooth stack the chance to get things ready
         Serial.println("Device notified");
