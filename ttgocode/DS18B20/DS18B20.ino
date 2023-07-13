@@ -3,6 +3,7 @@
 #include "User_Setup_Select.h"
 #include "User_Setup.h"
 #include <TFT_eSPI.h>
+#include <TFT_Drivers/ST7789_Defines.h>
 
 #include <BLEDevice.h>
 #include <BLEServer.h>
@@ -12,6 +13,7 @@
 #include <OneWire.h>
 #include <DallasTemperature.h>
 
+#define BUTTON_PIN GPIO_NUM_0
 #define BUTTON_PIN_BITMASK 0x000000001 // 2^1 in hex
 
 // GPIO where the DS18B20 is connected to
@@ -25,9 +27,13 @@ BLEService *pService = NULL;
 BLECharacteristic* pCharacteristic = NULL;
 uint8_t notificationTimerId = 0;
 uint8_t delayBeforeSleepTimerId = 1;
-uint16_t prescaler = 80; // Between 0 and 65 535
-uint32_t cpu_freq_mhz = 80; //reduce to 80 mhz (default is 240mhz)
-int threshold = 1000000; // 64 bits value (limited to int size of 32bits)
+uint16_t prescaler = 80;                    // Between 0 and 65 535
+uint32_t cpu_freq_mhz = 80;                 // Reduce to 80 mhz (default is 240mhz)
+int threshold = 1000000;                    // 64 bits value (limited to int size of 32bits)
+int lastButtonState = HIGH;                 // The previous state from the button input pin
+int currentButtonState;                     // The current reading from the button input pin
+unsigned long lastButtonPress = 0;          // Time since last pressed 
+const int debounceDelay = 50;               // Time between button pushes for it to register 
 bool deviceConnected = false;
 bool notificationTimeOut = false;
 bool notificationRepeatCount = 0;
@@ -86,6 +92,10 @@ void refreshDisplay() {
   chargeString += charge;
   chargeString += " %";
   tft.drawString(chargeString, tft.width()/6, tft.height() / 2, 4);
+}
+
+void closeDisplay() {
+  tft.writecommand(TFT_DISPOFF); //turn off lcd display
 }
 
 void notificationTimeEnded() {
@@ -217,12 +227,24 @@ void notifySensorsValues() {
     printSensorsValues();
 }
 
+void handleButtonPress() {
+  currentButtonState = digitalRead(BUTTON_PIN);
+  if(lastButtonState == HIGH && currentButtonState == LOW  && millis() - lastButtonPress > debounceDelay) {
+    refreshDisplay();
+    delay(1000*DELAY_TO_DISPLAY_SCREEN); 
+    closeDisplay();
+  }
+  lastButtonState = currentButtonState;
+}
+
 void setup() {
   setCpuFrequencyMhz(cpu_freq_mhz);
   Serial.begin(115200);
   
   setupSensors();
   readSensors();
+
+  pinMode(BUTTON_PIN, INPUT_PULLUP);
 
    esp_sleep_wakeup_cause_t wakeup_cause = esp_sleep_get_wakeup_cause();
 
@@ -241,6 +263,9 @@ void setup() {
 }
 
 void loop() {
+
+     handleButtonPress();
+     
     if (deviceConnected && notificationRepeatCount++ < NOTIFICATION_REPEAT_COUNT_MAX) { 
         notifySensorsValues();
         delay(1000*DELAY_BETWEEN_NOTIFICATIONS); // give the bluetooth stack the chance to get things ready
