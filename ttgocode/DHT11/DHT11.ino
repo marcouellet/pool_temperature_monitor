@@ -21,10 +21,12 @@ DHT dht(DHTPIN, DHTTYPE);
 TFT_eSPI tft = TFT_eSPI(320, 240);
 hw_timer_t * notificationTimer = NULL;
 hw_timer_t * delayBeforeSleepTimer = NULL;
+hw_timer_t * delayBetweenNotificationsTimer = NULL;
 BLEServer* pServer = NULL;
 BLEService *pService = NULL;
 BLECharacteristic* pCharacteristic = NULL;
 uint8_t notificationTimerId = 0;
+uint8_t delayBetweenNotificationsTimerId = 2;
 uint8_t delayBeforeSleepTimerId = 1;
 uint16_t prescaler = 80;                    // Between 0 and 65 535
 uint32_t cpu_freq_mhz = 80;                 // Reduce to 80 mhz (default is 240mhz)
@@ -34,6 +36,7 @@ int currentButtonState;                     // The current reading from the butt
 unsigned long lastButtonPress = 0;          // Time since last pressed 
 const int debounceDelay = 50;               // Time between button pushes for it to register 
 bool deviceConnected = false;
+bool delayBetweenNotificationsTimeOut = false;
 bool notificationTimeOut = false;
 bool notificationRepeatCount = 0;
 bool deepSleepRequested = false;
@@ -95,6 +98,10 @@ void notificationTimeEnded() {
   cancelNotificationTimer();
 }
 
+bool isNotificationTimerActive() {
+  return notificationTimer != NULL;
+}
+
 void cancelNotificationTimer() {
   if (notificationTimer != NULL) {
       timerEnd(notificationTimer);
@@ -122,6 +129,10 @@ void delayBeforeSleepTimerEnded() {
   deepSleepReady = true;
 }
 
+bool isDelayBeforeSleepTimerActive() {
+  return delayBeforeSleepTimer != NULL;
+}
+
 void cancelDelayBeforeSleepTimer() {
   if (delayBeforeSleepTimer != NULL) {
       timerEnd(delayBeforeSleepTimer);
@@ -135,7 +146,34 @@ void setupDelayBeforeSleepTimer(int seconds) {
   timerAttachInterrupt(delayBeforeSleepTimer, &delayBeforeSleepTimerEnded, true);
   timerAlarmWrite(delayBeforeSleepTimer, threshold*seconds, true);
   timerAlarmEnable(delayBeforeSleepTimer);
+  deepSleepReady = false;
 }
+
+void delayBetweenNotificationsTimerEnded() {
+  cancelDelayBetweenNotificationsTimer();
+  delayBetweenNotificationsTimeOut = true;
+}
+
+bool isDelayBetweenNotificationsTimerActive() {
+  return delayBetweenNotificationsTimer != NULL;
+}
+
+void cancelDelayBetweenNotificationsTimer() {
+  if (delayBetweenNotificationsTimer != NULL) {
+    timerEnd(delayBetweenNotificationsTimer);
+    delayBetweenNotificationsTimer = NULL;
+  }
+}
+
+void setupDelayBetweenNotificationsTimer(int seconds) {
+  cancelDelayBetweenNotificationsTimer(); // make sure no timer active
+  delayBetweenNotificationsTimer = timerBegin(delayBetweenNotificationsTimerId, prescaler, true);
+  timerAttachInterrupt(delayBetweenNotificationsTimer, &delayBetweenNotificationsTimerEnded, true);
+  timerAlarmWrite(delayBetweenNotificationsTimer, threshold*seconds, true);
+  timerAlarmEnable(delayBetweenNotificationsTimer);
+  delayBetweenNotificationsTimeOut = false;
+}
+
 
 void setupSensors() {
   dht.begin();
@@ -191,6 +229,10 @@ void deepSleep() {
     BLEDevice::stopAdvertising();
     Serial.println("Stopped advertising");
 
+    // cancelNotificationTimer();
+    // cancelDelayBeforeSleepTimer();
+    // cancelDelayBetweenNotificationsTimer();
+
     esp_sleep_enable_ext0_wakeup(BUTTON_PIN,0); //1 = High, 0 = Low
     esp_sleep_enable_timer_wakeup(TIME_TO_SLEEP * uS_TO_S_FACTOR);
     Serial.println("Going to deep sleep");
@@ -227,16 +269,30 @@ void handleButtonPress() {
   lastButtonState = currentButtonState;
 }
 
+void verifyTimers() {
+  String str = "NotificationTimer ";
+  str += isNotificationTimerActive() ? "Active" : "Inactive";
+  Serial.println(str);
+  str = "DelayBeforeSleepTimer ";
+  str += isDelayBeforeSleepTimerActive() ? "Active" : "Inactive";
+  Serial.println(str);
+  str = "DelayBetweenNotificationsTimer ";
+  str += isDelayBetweenNotificationsTimerActive() ? "Active" : "Inactive";
+  Serial.println(str);
+}
+
 void setup() {
   setCpuFrequencyMhz(cpu_freq_mhz);
   Serial.begin(115200);
   
   setupSensors();
   readSensors();
+
+  verifyTimers();
   
   pinMode(BUTTON_PIN, INPUT_PULLUP);
 
-   esp_sleep_wakeup_cause_t wakeup_cause = esp_sleep_get_wakeup_cause();
+  esp_sleep_wakeup_cause_t wakeup_cause = esp_sleep_get_wakeup_cause();
 
   if (wakeup_cause == ESP_SLEEP_WAKEUP_EXT0) {
     Serial.println("Wakeup caused by external signal using RTC_IO"); 
@@ -256,16 +312,32 @@ void loop() {
 
    handleButtonPress();
 
-  if (deviceConnected && notificationRepeatCount++ < NOTIFICATION_REPEAT_COUNT_MAX) { 
+  if (deviceConnected && !notificationTimeOut && notificationRepeatCount < NOTIFICATION_REPEAT_COUNT_MAX) { 
+    Serial.println("Device notification ..."); 
+    if (notificationRepeatCount == 0) {
+      delayBetweenNotificationsTimeOut = true; // No delay for first notification   
+    } else if (!isDelayBetweenNotificationsTimerActive() && NOTIFICATION_REPEAT_COUNT_MAX > 1) {
+      setupDelayBetweenNotificationsTimer(DELAY_BETWEEN_NOTIFICATIONS);
+    }
+    if (delayBetweenNotificationsTimeOut) {
+      notificationRepeatCount++;
       notifySensorsValues();
-      delay(1000*DELAY_BETWEEN_NOTIFICATIONS); // give the bluetooth stack the chance to get things ready
-      Serial.println("Device notified");
+      Serial.println("Device notified");  
+    }
   }
 
-  if (notificationTimeOut || notificationRepeatCount == NOTIFICATION_REPEAT_COUNT_MAX) {
+  if (notificationTimeOut || notificationRepeatCount >= NOTIFICATION_REPEAT_COUNT_MAX) {
+
+      cancelDelayBetweenNotificationsTimer();
       cancelNotificationTimer();
 
       if (!deepSleepRequested) {
+        if (notificationTimeOut) {
+          Serial.println("Device notification timeout");     
+        } else {
+          Serial.println("Device notification done");
+        }
+
         setupDelayBeforeSleepTimer(TIME_TO_WAIT_BEFORE_SLEEP); 
         deepSleepRequested = true;
         Serial.println("Deep sleep requested");
