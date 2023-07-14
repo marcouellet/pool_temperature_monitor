@@ -37,10 +37,11 @@ unsigned long lastButtonPress = 0;          // Time since last pressed
 const int debounceDelay = 50;               // Time between button pushes for it to register 
 bool deviceConnected = false;
 bool delayBetweenNotificationsTimeOut = false;
+bool delayBetweenNotificationsTimerStarting = false;
 bool notificationTimeOut = false;
-bool notificationRepeatCount = 0;
 bool deepSleepRequested = false;
 bool deepSleepReady = false;
+int notificationRepeatCount = 0;
 int temperature;
 int charge;
 
@@ -52,8 +53,8 @@ int charge;
 #define TIME_TO_WAIT_BEFORE_SLEEP  5      /* Time ESP32 stay awaken before gooing to deep sleep after notification period */
 #define DELAY_BETWEEN_NOTIFICATIONS 5     /* Wait time between each notification send during notification period */
 #define DELAY_TO_DISPLAY_SCREEN 5         /* Time to keep display active */
-#define NOTIFICATION_REPEAT_COUNT_MAX  2  /* Max notifications to send during notification period */
-#define SETUP_SENSORS_DELAY  0.5          /* Max notifications to send during notification period */
+#define NOTIFICATION_REPEAT_COUNT_MAX 2   /* Max notifications to send during notification period */
+#define SETUP_SENSORS_DELAY  0.5          /* Delay to make sure the sensors get time to initialize */
 
 // See the following for generating UUIDs:
 // https://www.uuidgenerator.net/
@@ -104,6 +105,7 @@ bool isNotificationTimerActive() {
 
 void cancelNotificationTimer() {
   if (notificationTimer != NULL) {
+      timerDetachInterrupt(notificationTimer);
       timerEnd(notificationTimer);
       notificationTimer = NULL;
   }
@@ -135,8 +137,9 @@ bool isDelayBeforeSleepTimerActive() {
 
 void cancelDelayBeforeSleepTimer() {
   if (delayBeforeSleepTimer != NULL) {
-      timerEnd(delayBeforeSleepTimer);
-      delayBeforeSleepTimer = NULL;
+    timerDetachInterrupt(delayBeforeSleepTimer);
+    timerEnd(delayBeforeSleepTimer);
+    delayBeforeSleepTimer = NULL;
   }
 }
 
@@ -150,30 +153,40 @@ void setupDelayBeforeSleepTimer(int seconds) {
 }
 
 void delayBetweenNotificationsTimerEnded() {
-  cancelDelayBetweenNotificationsTimer();
-  delayBetweenNotificationsTimeOut = true;
+  if (!delayBetweenNotificationsTimerStarting) {
+    cancelDelayBetweenNotificationsTimer();
+    delayBetweenNotificationsTimeOut = true;
+  }
 }
 
 bool isDelayBetweenNotificationsTimerActive() {
   return delayBetweenNotificationsTimer != NULL;
 }
 
+bool isDelayBetweenNotificationsTimerInactive() {
+  return !delayBetweenNotificationsTimerStarting && delayBetweenNotificationsTimer == NULL;
+}
+
 void cancelDelayBetweenNotificationsTimer() {
   if (delayBetweenNotificationsTimer != NULL) {
+    timerDetachInterrupt(delayBetweenNotificationsTimer);
     timerEnd(delayBetweenNotificationsTimer);
     delayBetweenNotificationsTimer = NULL;
   }
 }
 
 void setupDelayBetweenNotificationsTimer(int seconds) {
-  cancelDelayBetweenNotificationsTimer(); // make sure no timer active
-  delayBetweenNotificationsTimer = timerBegin(delayBetweenNotificationsTimerId, prescaler, true);
-  timerAttachInterrupt(delayBetweenNotificationsTimer, &delayBetweenNotificationsTimerEnded, true);
-  timerAlarmWrite(delayBetweenNotificationsTimer, threshold*seconds, true);
-  timerAlarmEnable(delayBetweenNotificationsTimer);
-  delayBetweenNotificationsTimeOut = false;
+  if (!delayBetweenNotificationsTimerStarting) {
+    delayBetweenNotificationsTimeOut = false;
+    delayBetweenNotificationsTimerStarting = true;
+    cancelDelayBetweenNotificationsTimer();
+    delayBetweenNotificationsTimer = timerBegin(delayBetweenNotificationsTimerId, prescaler, true);
+    timerAttachInterrupt(delayBetweenNotificationsTimer, &delayBetweenNotificationsTimerEnded, true);
+    timerAlarmWrite(delayBetweenNotificationsTimer, threshold*seconds, true);
+    timerAlarmEnable(delayBetweenNotificationsTimer);
+    delayBetweenNotificationsTimerStarting = false;
+  }
 }
-
 
 void setupSensors() {
   dht.begin();
@@ -229,10 +242,6 @@ void deepSleep() {
     BLEDevice::stopAdvertising();
     Serial.println("Stopped advertising");
 
-    // cancelNotificationTimer();
-    // cancelDelayBeforeSleepTimer();
-    // cancelDelayBetweenNotificationsTimer();
-
     esp_sleep_enable_ext0_wakeup(BUTTON_PIN,0); //1 = High, 0 = Low
     esp_sleep_enable_timer_wakeup(TIME_TO_SLEEP * uS_TO_S_FACTOR);
     Serial.println("Going to deep sleep");
@@ -269,26 +278,12 @@ void handleButtonPress() {
   lastButtonState = currentButtonState;
 }
 
-void verifyTimers() {
-  String str = "NotificationTimer ";
-  str += isNotificationTimerActive() ? "Active" : "Inactive";
-  Serial.println(str);
-  str = "DelayBeforeSleepTimer ";
-  str += isDelayBeforeSleepTimerActive() ? "Active" : "Inactive";
-  Serial.println(str);
-  str = "DelayBetweenNotificationsTimer ";
-  str += isDelayBetweenNotificationsTimerActive() ? "Active" : "Inactive";
-  Serial.println(str);
-}
-
 void setup() {
   setCpuFrequencyMhz(cpu_freq_mhz);
   Serial.begin(115200);
   
   setupSensors();
   readSensors();
-
-  verifyTimers();
   
   pinMode(BUTTON_PIN, INPUT_PULLUP);
 
@@ -313,16 +308,15 @@ void loop() {
    handleButtonPress();
 
   if (deviceConnected && !notificationTimeOut && notificationRepeatCount < NOTIFICATION_REPEAT_COUNT_MAX) { 
-    Serial.println("Device notification ..."); 
-    if (notificationRepeatCount == 0) {
-      delayBetweenNotificationsTimeOut = true; // No delay for first notification   
-    } else if (!isDelayBetweenNotificationsTimerActive() && NOTIFICATION_REPEAT_COUNT_MAX > 1) {
-      setupDelayBetweenNotificationsTimer(DELAY_BETWEEN_NOTIFICATIONS);
-    }
     if (delayBetweenNotificationsTimeOut) {
       notificationRepeatCount++;
       notifySensorsValues();
       Serial.println("Device notified");  
+    }
+    if (notificationRepeatCount == 0 && isDelayBetweenNotificationsTimerInactive()) {
+      delayBetweenNotificationsTimeOut = true; // No delay for first notification   
+    } else if (delayBetweenNotificationsTimeOut && NOTIFICATION_REPEAT_COUNT_MAX > 1) {
+      setupDelayBetweenNotificationsTimer(DELAY_BETWEEN_NOTIFICATIONS);
     }
   }
 
