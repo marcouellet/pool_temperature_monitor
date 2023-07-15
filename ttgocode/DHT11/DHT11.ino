@@ -41,6 +41,7 @@ bool delayBetweenNotificationsTimerStarting = false;
 bool notificationTimeOut = false;
 bool deepSleepRequested = false;
 bool deepSleepReady = false;
+bool buttonPressed = false;
 int notificationRepeatCount = 0;
 int temperature;
 int charge;
@@ -50,9 +51,10 @@ int charge;
 #define uS_TO_S_FACTOR 1000000ULL         /* Conversion factor for micro seconds to seconds */
 #define TIME_TO_SLEEP  60                 /* Time ESP32 will stay in deep sleep before awakening (in seconds) */
 #define TIME_TO_NOTIFY  30                /* Time ESP32 stay awaken to send notifications */
-#define TIME_TO_WAIT_BEFORE_SLEEP  5      /* Time ESP32 stay awaken before gooing to deep sleep after notification period */
-#define DELAY_BETWEEN_NOTIFICATIONS 5     /* Wait time between each notification send during notification period */
-#define DELAY_TO_DISPLAY_SCREEN 5         /* Time to keep display active */
+#define TIME_TO_WAIT_BEFORE_SLEEP      5  /* Time ESP32 stay awaken before gooing to deep sleep after notification period */
+#define DELAY_BETWEEN_NOTIFICATIONS    5  /* Wait time between each notification send during notification period */
+#define DELAY_TO_DISPLAY_SCREEN        5  /* Time to keep display active */
+#define DELAY_TO_LOOP                  1  /* Time to wait before executing next loop - to save power consumption */
 #define NOTIFICATION_REPEAT_COUNT_MAX 2   /* Max notifications to send during notification period */
 #define SETUP_SENSORS_DELAY  0.5          /* Delay to make sure the sensors get time to initialize */
 
@@ -268,14 +270,23 @@ void notifySensorsValues() {
     printSensorsValues();
 }
 
+void setupButton() {
+  pinMode(BUTTON_PIN, INPUT_PULLUP);
+  attachInterrupt(digitalPinToInterrupt(BUTTON_PIN), handleButtonPress, CHANGE);
+}
+
 void handleButtonPress() {
   currentButtonState = digitalRead(BUTTON_PIN);
   if(lastButtonState == HIGH && currentButtonState == LOW  && millis() - lastButtonPress > debounceDelay) {
-    refreshDisplay();
-    delay(1000*DELAY_TO_DISPLAY_SCREEN); 
-    closeDisplay();
+    buttonPressed = true;
   }
   lastButtonState = currentButtonState;
+}
+
+void displaySensorsValues() {
+  refreshDisplay();
+  delay(1000*DELAY_TO_DISPLAY_SCREEN); 
+  closeDisplay();
 }
 
 void setup() {
@@ -284,8 +295,6 @@ void setup() {
   
   setupSensors();
   readSensors();
-  
-  pinMode(BUTTON_PIN, INPUT_PULLUP);
 
   esp_sleep_wakeup_cause_t wakeup_cause = esp_sleep_get_wakeup_cause();
 
@@ -300,12 +309,18 @@ void setup() {
     }
     setupNotification();
     setupBleService(); 
+    setupButton();
   } 
 }
 
 void loop() {
 
-   handleButtonPress();
+  delay(1000*DELAY_TO_LOOP); // Slow down the time spent in loop - to save power consumption
+
+  if (buttonPressed) {
+    displaySensorsValues();
+    buttonPressed = false;
+  }
 
   if (deviceConnected && !notificationTimeOut && notificationRepeatCount < NOTIFICATION_REPEAT_COUNT_MAX) { 
     if (delayBetweenNotificationsTimeOut) {
