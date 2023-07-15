@@ -33,6 +33,7 @@ class _SensorPageState extends State<SensorPage> {
     super.initState();
     isReady = false;
     isLookingForDevice = false;
+    isDeviceConnected = false;
     BleUtils.initStreams();
     lookupForDevice();
   }
@@ -54,8 +55,8 @@ class _SensorPageState extends State<SensorPage> {
     device = await BleUtils.lookupForDevice();
     if (device != null) {
       await device!.connect();
-      isDeviceConnected = true;
       monitorDeviceState();
+      isDeviceConnected = true;
     } else {
       setState(() { isReady = false; });
     }

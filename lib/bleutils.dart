@@ -75,6 +75,7 @@ class BleUtils {
 
   static Future<BluetoothDevice?> lookupForDevice() async {
     _isLookingForDevice = true;
+    _isScanCancelled = false;
     int lookupRetries = 0;
     BluetoothDevice? device;
 
