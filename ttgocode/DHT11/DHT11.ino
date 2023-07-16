@@ -9,6 +9,10 @@
 #include <BLEServer.h>
 #include <BLEUtils.h>
 #include <BLE2902.h>
+
+#include <Wire.h>
+#include <LiFuelGauge.h>
+
 #include <DHT.h>
 
 #define BUTTON_PIN GPIO_NUM_0
@@ -18,6 +22,7 @@
 #define DHTTYPE    DHT11
 
 DHT dht(DHTPIN, DHTTYPE);
+LiFuelGauge* powerGauge;
 TFT_eSPI tft = TFT_eSPI(320, 240);
 hw_timer_t * notificationTimer = NULL;
 hw_timer_t * delayBeforeSleepTimer = NULL;
@@ -35,6 +40,9 @@ int lastButtonState = HIGH;                 // The previous state from the butto
 int currentButtonState;                     // The current reading from the button input pin
 unsigned long lastButtonPress = 0;          // Time since last pressed 
 const int debounceDelay = 50;               // Time between button pushes for it to register 
+bool isPowerGaugeAvailable = false;
+bool isPowerGaugeActive = false;
+bool alertLowPower = false;
 bool deviceConnected = false;
 bool delayBetweenNotificationsTimeOut = false;
 bool delayBetweenNotificationsTimerStarting = false;
@@ -43,8 +51,8 @@ bool deepSleepRequested = false;
 bool deepSleepReady = false;
 bool buttonPressed = false;
 int notificationRepeatCount = 0;
+int charge = 0;
 int temperature;
-int charge;
 
 // N.B. All delays are in seconds
 
@@ -75,6 +83,8 @@ class MyServerCallbacks: public BLEServerCallbacks {
       deviceConnected = false;
     }
 };
+
+void lowPower() { alertLowPower = true; }
 
 void refreshDisplay() {
   tft.init();
@@ -111,6 +121,20 @@ void cancelNotificationTimer() {
       timerEnd(notificationTimer);
       notificationTimer = NULL;
   }
+}
+
+void setupPowerGauge() {
+  if (isPowerGaugeAvailable) {
+    powerGauge = new LiFuelGauge(MAX17043, 0, lowPower);
+    powerGauge->reset();  // Resets MAX17043
+    delay(200);  // Waits for the initial measurements to be made
+
+    // Sets the Alert Threshold to 10% of full capacity
+    powerGauge->setAlertThreshold(10);
+    Serial.println(String("Power Alert Threshold is set to ") + 
+                   powerGauge->getAlertThreshold() + '%');
+    isPowerGaugeActive = true;
+  }  
 }
 
 void setupNotification() {
@@ -233,7 +257,9 @@ void setupBleService() {
 
 void readSensors() {
   temperature = dht.readTemperature();
-  charge = dht.readHumidity();
+  if (isPowerGaugeActive) {
+    charge = powerGauge->getSOC();
+  }
 }
 
 void deepSleep() {
@@ -293,6 +319,7 @@ void setup() {
   setCpuFrequencyMhz(cpu_freq_mhz);
   Serial.begin(115200);
   
+  setupPowerGauge();
   setupSensors();
   readSensors();
 
@@ -355,5 +382,12 @@ void loop() {
 
   if (deepSleepReady) {
       deepSleep();
+  }
+
+  if (alertLowPower)
+  {
+      Serial.println("Beware, Low Power!");
+      powerGauge->clearAlertInterrupt();  // Resets the ALRT pin
+      alertLowPower = false;
   }
 }
