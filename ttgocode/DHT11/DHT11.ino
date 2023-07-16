@@ -285,6 +285,7 @@ void printSensorsValues() {
     Serial.print(" charge=");
     Serial.println(charge);
 }
+
 void notifySensorsValues() {
     String str = "";
     str += TIME_TO_SLEEP;

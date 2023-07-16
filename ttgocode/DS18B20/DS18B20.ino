@@ -49,6 +49,7 @@ bool delayBetweenNotificationsTimerStarting = false;
 bool notificationTimeOut = false;
 bool deepSleepRequested = false;
 bool deepSleepReady = false;
+bool buttonPressed = false;
 int notificationRepeatCount = 0;
 int charge = 0;
 int temperature;
@@ -294,6 +295,7 @@ void printSensorsValues() {
     Serial.print(" charge=");
     Serial.println(charge);
 }
+
 void notifySensorsValues() {
     String str = "";
     str += TIME_TO_SLEEP;
@@ -306,14 +308,23 @@ void notifySensorsValues() {
     printSensorsValues();
 }
 
+void setupButton() {
+  pinMode(BUTTON_PIN, INPUT_PULLUP);
+  attachInterrupt(digitalPinToInterrupt(BUTTON_PIN), handleButtonPress, CHANGE);
+}
+
 void handleButtonPress() {
   currentButtonState = digitalRead(BUTTON_PIN);
   if(lastButtonState == HIGH && currentButtonState == LOW  && millis() - lastButtonPress > debounceDelay) {
-    refreshDisplay();
-    delay(1000*DELAY_TO_DISPLAY_SCREEN); 
-    closeDisplay();
+    buttonPressed = true;
   }
   lastButtonState = currentButtonState;
+}
+
+void displaySensorsValues() {
+  refreshDisplay();
+  delay(1000*DELAY_TO_DISPLAY_SCREEN); 
+  closeDisplay();
 }
 
 void setup() {
@@ -343,7 +354,11 @@ void setup() {
 
 void loop() {
 
-   handleButtonPress();
+  if (buttonPressed) {
+    displaySensorsValues();
+    buttonPressed = false;
+  }
+
 
   if (deviceConnected && !notificationTimeOut && notificationRepeatCount < NOTIFICATION_REPEAT_COUNT_MAX) { 
     if (delayBetweenNotificationsTimeOut) {
