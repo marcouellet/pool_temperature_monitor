@@ -217,6 +217,7 @@ void setupDelayBetweenNotificationsTimer(int seconds) {
 void setupSensors() {
   dht.begin();
   delay(1000*SETUP_SENSORS_DELAY);
+  setupPowerGauge();
 }
 
 void setupBleService() {
@@ -319,7 +320,6 @@ void setup() {
   setCpuFrequencyMhz(cpu_freq_mhz);
   Serial.begin(115200);
   
-  setupPowerGauge();
   setupSensors();
   readSensors();
 

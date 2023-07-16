@@ -10,6 +10,9 @@
 #include <BLEUtils.h>
 #include <BLE2902.h>
 
+#include <Wire.h>
+#include <LiFuelGauge.h>
+
 #include <OneWire.h>
 #include <DallasTemperature.h>
 
@@ -37,6 +40,9 @@ int lastButtonState = HIGH;                 // The previous state from the butto
 int currentButtonState;                     // The current reading from the button input pin
 unsigned long lastButtonPress = 0;          // Time since last pressed 
 const int debounceDelay = 50;               // Time between button pushes for it to register 
+bool isPowerGaugeAvailable = false;
+bool isPowerGaugeActive = false;
+bool alertLowPower = false;
 bool deviceConnected = false;
 bool delayBetweenNotificationsTimeOut = false;
 bool delayBetweenNotificationsTimerStarting = false;
@@ -44,8 +50,10 @@ bool notificationTimeOut = false;
 bool deepSleepRequested = false;
 bool deepSleepReady = false;
 int notificationRepeatCount = 0;
+int charge = 0;
 int temperature;
-int charge;
+
+LiFuelGauge* powerGauge;
 
 // Setup a oneWire instance to communicate with any OneWire devices
 OneWire oneWire(oneWireBus);
@@ -83,6 +91,8 @@ class MyServerCallbacks: public BLEServerCallbacks {
     }
 };
 
+void lowPower() { alertLowPower = true; }
+
 void refreshDisplay() {
   tft.init();
   tft.fillScreen(TFT_DARKCYAN);
@@ -97,6 +107,20 @@ void refreshDisplay() {
   chargeString += charge;
   chargeString += " %";
   tft.drawString(chargeString, tft.width()/6, tft.height() / 2, 4);
+}
+
+void setupPowerGauge() {
+  if (isPowerGaugeAvailable) {
+    powerGauge = new LiFuelGauge(MAX17043, 0, lowPower);
+    powerGauge->reset();  // Resets MAX17043
+    delay(200);  // Waits for the initial measurements to be made
+
+    // Sets the Alert Threshold to 10% of full capacity
+    powerGauge->setAlertThreshold(10);
+    Serial.println(String("Power Alert Threshold is set to ") + 
+                   powerGauge->getAlertThreshold() + '%');
+    isPowerGaugeActive = true;
+  }  
 }
 
 void closeDisplay() {
@@ -201,6 +225,7 @@ void setupSensors() {
   // Start the DS18B20 sensor
   sensors.begin();
   delay(1000*SETUP_SENSORS_DELAY);
+  setupPowerGauge();
 }
 
 void setupBleService() {
@@ -242,7 +267,9 @@ void setupBleService() {
 void readSensors() {
   sensors.requestTemperatures(); 
   temperature = sensors.getTempCByIndex(0);
-  charge = 100;
+  if (isPowerGaugeActive) {
+    charge = powerGauge->getSOC();
+  }
 }
 
 void deepSleep() {
@@ -351,5 +378,12 @@ void loop() {
 
   if (deepSleepReady) {
       deepSleep();
+  }
+
+  if (alertLowPower)
+  {
+      Serial.println("Beware, Low Power!");
+      powerGauge->clearAlertInterrupt();  // Resets the ALRT pin
+      alertLowPower = false;
   }
 }
