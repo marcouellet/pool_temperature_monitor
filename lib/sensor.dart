@@ -21,10 +21,12 @@ class _SensorPageState extends State<SensorPage> {
   late bool isLookingForDevice;
   late bool isDeviceConnected;
   late List _sleeptempchargedata;
+  late AnimationController controller;
+  late Animation colorAnimation;
+  late Animation rotateAnimation;
   StreamSubscription<BluetoothDeviceState>? deviceStateSubscription;
   BluetoothDevice? device;
   Stream<List<int>>? stream;
-
   int _temp = 0;
   int _charge = 0;
 
@@ -127,7 +129,24 @@ class _SensorPageState extends State<SensorPage> {
   Widget build(BuildContext context) {
      return Scaffold(
         appBar: AppBar(
-          title: Text(deviceTitle())),
+          title: Text(deviceTitle()),      
+          actions: <Widget>[
+            Container(
+              padding: const EdgeInsets.all(8.0),
+              child: isLookingForDevice 
+              ? const CircularProgressIndicator(              
+                  color: Colors.white,
+                  strokeWidth: 6,
+                )
+              : IconButton(
+                  padding: EdgeInsets.zero,
+                  iconSize: 40,
+                  icon: const Icon(Icons.sync),
+                  onPressed: () { tryLookupForDevices(); }
+                ),
+            ),
+          ]
+        ),
         body: Container(
             child: !isReady
               ? isLookingForDevice ? 
