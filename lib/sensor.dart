@@ -17,103 +17,95 @@ class SensorPage extends StatefulWidget {
 }
 
 class _SensorPageState extends State<SensorPage> {
-  late bool isReady;
-  late bool isLookingForDevice;
-  late bool isDeviceConnected;
+  late bool _isReady;
+  late bool _isLookingForDevice;
+  late bool _isDeviceConnected;
   late List _sleeptempchargedata;
-  late AnimationController controller;
-  late Animation colorAnimation;
-  late Animation rotateAnimation;
-  StreamSubscription<BluetoothDeviceState>? deviceStateSubscription;
-  BluetoothDevice? device;
-  Stream<List<int>>? stream;
+  StreamSubscription<BluetoothDeviceState>? _deviceStateSubscription;
+  BluetoothDevice? _device;
+  Stream<List<int>>? _stream;
   int _temp = 0;
   int _charge = 0;
 
   @override
   void initState()  {
     super.initState();
-    isReady = false;
-    isLookingForDevice = false;
-    isDeviceConnected = false;
+    _isReady = false;
+    _isLookingForDevice = false;
+    _isDeviceConnected = false;
     BleUtils.initStreams();
-    lookupForDevice();
+    _lookupForDevice();
   }
 
   @override
   void dispose() {
-    device!.disconnect();
+    _device!.disconnect();
     super.dispose();
   }
 
-  void tryLookupForDevices() {
-    if (!isLookingForDevice) {
-       lookupForDevice();
+  void _tryLookupForDevices() {
+    if (!_isLookingForDevice) {
+       _lookupForDevice();
     }
   }
 
-  Future<void> lookupForDevice() async {
-    setState(() { isLookingForDevice = true; });
-    device = await BleUtils.lookupForDevice();
-    if (device != null) {
-      await device!.connect();
-      monitorDeviceState();
-      isDeviceConnected = true;
+  Future<void> _lookupForDevice() async {
+    setState(() { _isLookingForDevice = true; });
+    _device = await BleUtils.lookupForDevice();
+    if (_device != null) {
+      await _device!.connect();
+      _monitorDeviceState();
+      _isDeviceConnected = true;
     } else {
-      setState(() { isReady = false; });
+      setState(() { _isReady = false; });
     }
-    setState(() { isLookingForDevice = false; });
+    setState(() { _isLookingForDevice = false; });
   }
 
-  void cancelDeviceStateMonitoring() {
-    if (deviceStateSubscription != null) {
-      deviceStateSubscription!.cancel();
-      deviceStateSubscription = null;
+  void _cancelDeviceStateMonitoring() {
+    if (_deviceStateSubscription != null) {
+      _deviceStateSubscription!.cancel();
+      _deviceStateSubscription = null;
     }
   }
 
-  void monitorDeviceState() async {
-    cancelDeviceStateMonitoring();
-    deviceStateSubscription = device!.state.listen((event) async {
+  void _monitorDeviceState() async {
+    _cancelDeviceStateMonitoring();
+    _deviceStateSubscription = _device!.state.listen((event) async {
       if (event == BluetoothDeviceState.disconnected) {
-        cancelDeviceStateMonitoring();
-        await disconnectDevice();
-        tryLookupForDevices();
+        _cancelDeviceStateMonitoring();
+        await _disconnectDevice();
+        _tryLookupForDevices();
       }
       if (event == BluetoothDeviceState.connected) {
-        discoverServices();
+        _discoverServices();
       }
      });
   }
 
-  String deviceTitle() {
+  String _deviceTitle() {
     // ignore: unnecessary_null_comparison
-    return device == null ? 'No device' : 
-      '${device!.name.substring(AppSettings.bleDeviceNamePrefix.length)} Temperature Sensor';
+    return _device == null ? 'No device' : 
+      '${_device!.name.substring(AppSettings.bleDeviceNamePrefix.length)} Temperature Sensor';
   }
 
-  disconnectDevice() async {
-    if (isDeviceConnected) {
-      await device!.disconnect();
-      isDeviceConnected = false;
+  _disconnectDevice() async {
+    if (_isDeviceConnected) {
+      await _device!.disconnect();
+      _isDeviceConnected = false;
     }
   }
 
-  disconnectFromDevice() {
-    device!.disconnect();
-    isReady = false;
-  }
-
-  discoverServices() async {
-    List<BluetoothService> services = await device!.discoverServices();
+  _discoverServices() async {
+    List<BluetoothService> services = await _device!.discoverServices();
     services.forEach((service) {
       if (service.uuid.toString() == AppSettings.bleServiceUUID) {
         service.characteristics.forEach((characteristic) {
           if (characteristic.uuid.toString() == AppSettings.bleCharacteristicsUUID) {
             characteristic.setNotifyValue(true);
             setState(() {
-              stream = characteristic.value;
-              isReady = true;
+              _stream = characteristic.value;
+              _isReady = true;
             });
           }
         });
@@ -129,11 +121,11 @@ class _SensorPageState extends State<SensorPage> {
   Widget build(BuildContext context) {
      return Scaffold(
         appBar: AppBar(
-          title: Text(deviceTitle()),      
+          title: Text(_deviceTitle()),      
           actions: <Widget>[
             Container(
               padding: const EdgeInsets.all(8.0),
-              child: isLookingForDevice 
+              child: _isLookingForDevice 
               ? const CircularProgressIndicator(              
                   color: Colors.white,
                   strokeWidth: 6,
@@ -142,14 +134,14 @@ class _SensorPageState extends State<SensorPage> {
                   padding: EdgeInsets.zero,
                   iconSize: 40,
                   icon: const Icon(Icons.sync),
-                  onPressed: () { tryLookupForDevices(); }
+                  onPressed: () { _tryLookupForDevices(); }
                 ),
             ),
           ]
         ),
         body: Container(
-            child: !isReady
-              ? isLookingForDevice ? 
+            child: !_isReady
+              ? _isLookingForDevice ? 
                 Center(
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
@@ -173,13 +165,13 @@ class _SensorPageState extends State<SensorPage> {
                         style: TextStyle(fontSize: 24, color: Colors.red),
                       ),
                       ElevatedButton(
-                        onPressed: () => tryLookupForDevices(),
+                        onPressed: () => _tryLookupForDevices(),
                         child: const Text('Retry scan for device')),
                     ],
                   ),
                 )
                 : StreamBuilder<List<int>>(
-                  stream: stream,
+                  stream: _stream,
                   builder: (BuildContext context,
                              AsyncSnapshot<List<int>> snapshot) {
                   if (snapshot.hasError)

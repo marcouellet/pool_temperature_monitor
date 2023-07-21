@@ -11,7 +11,6 @@ class BleUtils {
   static int _sleepdelay = AppSettings.bleLookupForDeviceRetryDelaySeconds;
   static bool _isLookingForDevice = false;
   static bool _isScanCancelled = false;
-  static int lookupRetries = 0;
 
   static initStreams() { 
     _connectedDevicesStreamSubscription =_flutterBlue.connectedDevices
