@@ -12,6 +12,15 @@ class HomeUI extends StatefulWidget {
 }
 
 class _HomeUIState extends State<HomeUI> {
+
+  int getTemperatureSafeValue() {
+    return (widget.temperature < 0 || widget.temperature > 100) ? 0 : widget.temperature;
+  }
+
+  int getChargeSafeValue() {
+    return (widget.charge < 0 || widget.charge > 100) ? 0 : widget.charge;
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -72,7 +81,7 @@ class _HomeUIState extends State<HomeUI> {
                           animationEnabled: true),
                       min: 0,
                       max: 100,
-                      initialValue: widget.temperature.toDouble(),
+                      initialValue: getTemperatureSafeValue().toDouble(),
                     ),
                     const SizedBox(
                       height: 40,
@@ -108,7 +117,7 @@ class _HomeUIState extends State<HomeUI> {
                           animationEnabled: true),
                       min: 0,
                       max: 100,
-                      initialValue: widget.charge.toDouble(),
+                      initialValue: getChargeSafeValue().toDouble(),
                     ),
                     const SizedBox(
                       height: 20,
