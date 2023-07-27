@@ -20,7 +20,7 @@
 #define BUTTON_PIN_BITMASK 0x000000001 // 2^1 in hex
 
 // GPIO where the DS18B20 is connected to
-const int oneWireBus = 27;
+const int oneWireBus = 2;
 
 TFT_eSPI tft = TFT_eSPI(320, 240);
 hw_timer_t * notificationTimer = NULL;
@@ -32,7 +32,6 @@ BLECharacteristic* pCharacteristic = NULL;
 uint8_t notificationTimerId = 0;
 uint8_t delayBeforeSleepTimerId = 1;
 uint8_t delayBetweenNotificationsTimerId = 2;
-uint8_t delayBeforeSleepTimerId = 1;
 uint16_t prescaler = 80;                    // Between 0 and 65 535
 uint32_t cpu_freq_mhz = 80;                 // Reduce to 80 mhz (default is 240mhz)
 int threshold = 1000000;                    // 64 bits value (limited to int size of 32bits)
@@ -40,7 +39,7 @@ int lastButtonState = HIGH;                 // The previous state from the butto
 int currentButtonState;                     // The current reading from the button input pin
 unsigned long lastButtonPress = 0;          // Time since last pressed 
 const int debounceDelay = 50;               // Time between button pushes for it to register 
-bool isPowerGaugeAvailable = false;
+bool isPowerGaugeAvailable = true;
 bool isPowerGaugeActive = false;
 bool alertLowPower = false;
 bool deviceConnected = false;
@@ -52,7 +51,8 @@ bool deepSleepReady = false;
 bool buttonPressed = false;
 int notificationRepeatCount = 0;
 int charge = 0;
-int temperature;
+int waterTemperature;
+int airTemperature;
 
 LiFuelGauge* powerGauge;
 
@@ -99,15 +99,20 @@ void refreshDisplay() {
   tft.fillScreen(TFT_DARKCYAN);
   tft.setTextColor(TFT_BLACK, TFT_DARKCYAN); 
 
-  String temperatureString = "Temperature ";
-  temperatureString += temperature;
+  String temperatureString = "Water temp. ";
+  temperatureString += waterTemperature;
   temperatureString += " `C";
-  tft.drawString(temperatureString, tft.width()/6, tft.height() / 3, 4);
+  tft.drawString(temperatureString, tft.width()/6, tft.height() / 4, 4);
+
+  temperatureString = "Air temp. ";
+  temperatureString += airTemperature;
+  temperatureString += " `C";
+  tft.drawString(temperatureString, tft.width()/6, 2 * tft.height() / 5, 4);
 
   String chargeString = "Charge ";
   chargeString += charge;
   chargeString += " %";
-  tft.drawString(chargeString, tft.width()/6, tft.height() / 2, 4);
+  tft.drawString(chargeString, tft.width()/6, 3 * tft.height() / 4, 4);
 }
 
 void setupPowerGauge() {
@@ -117,7 +122,7 @@ void setupPowerGauge() {
     delay(200);  // Waits for the initial measurements to be made
 
     // Sets the Alert Threshold to 10% of full capacity
-    powerGauge->setAlertThreshold(10);
+    //powerGauge->setAlertThreshold(10);
     Serial.println(String("Power Alert Threshold is set to ") + 
                    powerGauge->getAlertThreshold() + '%');
     isPowerGaugeActive = true;
@@ -222,9 +227,17 @@ void setupDelayBetweenNotificationsTimer(int seconds) {
   }
 }
 
+void displayDS18B20Info() {
+  uint8_t deviceCount = sensors.getDeviceCount();
+  String str = "DS18B20 devices count=";
+  str+= deviceCount;
+  Serial.println(str);
+}
+
 void setupSensors() {
   // Start the DS18B20 sensor
   sensors.begin();
+  displayDS18B20Info();
   delay(1000*SETUP_SENSORS_DELAY);
   setupPowerGauge();
 }
@@ -265,9 +278,26 @@ void setupBleService() {
   Serial.println("Waiting a client connection to notify...");
 }
 
+void readTemperature() {
+  sensors.requestTemperatures();
+  uint8_t deviceCount = sensors.getDeviceCount();
+
+  switch (deviceCount) {
+    case 0:
+      waterTemperature = airTemperature = 0;
+      break;
+    case 1:
+      waterTemperature = sensors.getTempCByIndex(0);
+      break;
+    case 2:
+      waterTemperature = sensors.getTempCByIndex(0);
+      airTemperature = sensors.getTempCByIndex(1);
+      break;
+  }
+}
+
 void readSensors() {
-  sensors.requestTemperatures(); 
-  temperature = sensors.getTempCByIndex(0);
+  readTemperature();
   if (isPowerGaugeActive) {
     charge = powerGauge->getSOC();
   }
@@ -290,9 +320,11 @@ void deepSleep() {
 void printSensorsValues() {
     Serial.print("Notify values: sleep delay=");
     Serial.print(TIME_TO_SLEEP); 
-    Serial.print(" temperature=");
-    Serial.print(temperature);
-    Serial.print(" charge=");
+    Serial.print(", water temperature=");
+    Serial.print(waterTemperature);
+    Serial.print(", air temperature=");
+    Serial.print(airTemperature);
+    Serial.print(", charge=");
     Serial.println(charge);
 }
 
@@ -300,7 +332,9 @@ void notifySensorsValues() {
     String str = "";
     str += TIME_TO_SLEEP;
     str += ",";
-    str += temperature;
+    str += waterTemperature;
+    str += ",";
+    str += airTemperature;
     str += ",";
     str += charge;
     pCharacteristic->setValue((char*)str.c_str());
