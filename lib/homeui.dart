@@ -3,9 +3,10 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'package:sleek_circular_slider/sleek_circular_slider.dart';
 
 class HomeUI extends StatefulWidget {
-  final int temperature;
+  final int waterTemperature;
+  final int airTemperature;
   final int charge;
-  const HomeUI({Key? key, required this.temperature, required this.charge}) : super(key: key);
+  const HomeUI({Key? key, required this.waterTemperature,  required this.airTemperature, required this.charge}) : super(key: key);
   @override
   // ignore: library_private_types_in_public_api
   _HomeUIState createState() => _HomeUIState();
@@ -13,8 +14,13 @@ class HomeUI extends StatefulWidget {
 
 class _HomeUIState extends State<HomeUI> {
 
-  int getTemperatureSafeValue() {
-    return (widget.temperature < 0 || widget.temperature > 100) ? 0 : widget.temperature;
+  int getWaterTemperatureSafeValue() {
+    return (widget.waterTemperature < 0 || widget.waterTemperature > 100) ? 0 : widget.waterTemperature;
+  }
+
+
+  int getAirTemperatureSafeValue() {
+    return (widget.airTemperature < 0 || widget.airTemperature > 100) ? 0 : widget.airTemperature;
   }
 
   int getChargeSafeValue() {
@@ -48,7 +54,15 @@ class _HomeUIState extends State<HomeUI> {
                 child: Column(
                   children: [
                     const SizedBox(
-                    height: 20,
+                      height: 10,
+                    ),
+                    Text(
+                      'Température de l\'air ${getAirTemperatureSafeValue()} ˚C',
+                      style: const TextStyle(fontSize: 20.0, color: Colors.black),
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(
+                      height: 20,
                     ),
                     SleekCircularSlider(
                       appearance: CircularSliderAppearance(
@@ -67,24 +81,24 @@ class _HomeUIState extends State<HomeUI> {
                                   color: HexColor('#6DA100'),
                                   fontSize: 20,
                                   fontWeight: FontWeight.w600),
-                              bottomLabelText: 'Température',
+                              bottomLabelText: 'Tempér. eau',
                               mainLabelStyle: TextStyle(
                                   color: HexColor('#54826D'),
                                   fontSize: 20.0,
                                   fontWeight: FontWeight.w600),
                               modifier: (double value) {
-                                return '${widget.temperature} ˚C';
+                                return '${widget.waterTemperature} ˚C';
                               }),
                           startAngle: 90,
                           angleRange: 360,
-                          size: 160.0,
+                          size: 140.0,
                           animationEnabled: true),
                       min: 0,
                       max: 100,
-                      initialValue: getTemperatureSafeValue().toDouble(),
+                      initialValue: getWaterTemperatureSafeValue().toDouble(),
                     ),
                     const SizedBox(
-                      height: 40,
+                      height: 20,
                     ),
                     SleekCircularSlider(
                       appearance: CircularSliderAppearance(
@@ -113,7 +127,7 @@ class _HomeUIState extends State<HomeUI> {
                               }),
                           startAngle: 90,
                           angleRange: 360,
-                          size: 160.0,
+                          size: 140.0,
                           animationEnabled: true),
                       min: 0,
                       max: 100,

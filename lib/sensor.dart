@@ -24,7 +24,8 @@ class _SensorPageState extends State<SensorPage> {
   StreamSubscription<BluetoothDeviceState>? _deviceStateSubscription;
   BluetoothDevice? _device;
   Stream<List<int>>? _stream;
-  int _temp = 0;
+  int _waterTemp = 0;
+  int _airTemp = 0;
   int _charge = 0;
 
   @override
@@ -189,16 +190,31 @@ class _SensorPageState extends State<SensorPage> {
                         BleUtils.setSleepDelay(int.parse('${_sleeptempchargedata[0]}'));
                       }
                       if (_sleeptempchargedata[1] != "nan") {
-                        _temp = int.parse('${_sleeptempchargedata[1]}');
+                        _waterTemp = int.parse('${_sleeptempchargedata[1]}');
                       }
                       if (_sleeptempchargedata[2] != "nan") {
                         _charge = int.parse('${_sleeptempchargedata[2]}');
                       }
                     } 
+                    if(_sleeptempchargedata.length == 4) {
+                      if (_sleeptempchargedata[0] != "nan") {
+                        BleUtils.setSleepDelay(int.parse('${_sleeptempchargedata[0]}'));
+                      }
+                      if (_sleeptempchargedata[1] != "nan") {
+                        _waterTemp = int.parse('${_sleeptempchargedata[1]}');
+                      }
+                      if (_sleeptempchargedata[2] != "nan") {
+                        _airTemp = int.parse('${_sleeptempchargedata[2]}');
+                      }
+                      if (_sleeptempchargedata[2] != "nan") {
+                        _charge = int.parse('${_sleeptempchargedata[3]}');
+                      }
+                    } 
                   }
                   return HomeUI(
                       charge: _charge,
-                      temperature: _temp,
+                      waterTemperature: _waterTemp,
+                      airTemperature: _airTemp,
                     );
                 },
               )
