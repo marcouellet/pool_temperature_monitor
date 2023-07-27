@@ -22,6 +22,7 @@
 // GPIO where the DS18B20 is connected to
 const int oneWireBus = 2;
 
+
 TFT_eSPI tft = TFT_eSPI(320, 240);
 hw_timer_t * notificationTimer = NULL;
 hw_timer_t * delayBeforeSleepTimer = NULL;
