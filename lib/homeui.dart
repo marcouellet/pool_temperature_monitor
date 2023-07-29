@@ -27,6 +27,12 @@ class _HomeUIState extends State<HomeUI> {
     return (widget.charge < 0 || widget.charge > 100) ? 0 : widget.charge;
   }
 
+  int toFarenheit(int celcius) {
+    double c = celcius.toDouble();
+    double f = c * 9.0 / 5.0 + 32.0;
+    return f.toInt();
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -57,7 +63,7 @@ class _HomeUIState extends State<HomeUI> {
                       height: 10,
                     ),
                     Text(
-                      'Température de l\'air ${getAirTemperatureSafeValue()} ˚C',
+                      'Température de l\'air ${getAirTemperatureSafeValue()} ˚C / ${toFarenheit(getAirTemperatureSafeValue())} ˚F',
                       style: const TextStyle(fontSize: 20.0, color: Colors.black),
                       textAlign: TextAlign.center,
                     ),
@@ -87,7 +93,7 @@ class _HomeUIState extends State<HomeUI> {
                                   fontSize: 20.0,
                                   fontWeight: FontWeight.w600),
                               modifier: (double value) {
-                                return '${widget.waterTemperature} ˚C';
+                                return '${getWaterTemperatureSafeValue()} ˚C / ${toFarenheit(getWaterTemperatureSafeValue())} ˚F';
                               }),
                           startAngle: 90,
                           angleRange: 360,

@@ -206,7 +206,7 @@ class _SensorPageState extends State<SensorPage> {
                       if (_sleeptempchargedata[2] != "nan") {
                         _airTemp = int.parse('${_sleeptempchargedata[2]}');
                       }
-                      if (_sleeptempchargedata[2] != "nan") {
+                      if (_sleeptempchargedata[3] != "nan") {
                         _charge = int.parse('${_sleeptempchargedata[3]}');
                       }
                     } 

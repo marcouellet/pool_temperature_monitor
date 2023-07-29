@@ -103,17 +103,17 @@ void refreshDisplay() {
   String temperatureString = "Water temp. ";
   temperatureString += waterTemperature;
   temperatureString += " `C";
-  tft.drawString(temperatureString, tft.width()/6, tft.height() / 4, 4);
+  tft.drawString(temperatureString, tft.width()/6, 3 * tft.height() / 8, 4);
 
   temperatureString = "Air temp. ";
   temperatureString += airTemperature;
   temperatureString += " `C";
-  tft.drawString(temperatureString, tft.width()/6, 2 * tft.height() / 5, 4);
+  tft.drawString(temperatureString, tft.width()/6, 4 * tft.height() / 8, 4);
 
   String chargeString = "Charge ";
   chargeString += charge;
   chargeString += " %";
-  tft.drawString(chargeString, tft.width()/6, 3 * tft.height() / 4, 4);
+  tft.drawString(chargeString, tft.width()/6, 5 * tft.height() / 8, 4);
 }
 
 void setupPowerGauge() {
@@ -121,10 +121,13 @@ void setupPowerGauge() {
     powerGauge = new LiFuelGauge(MAX17043, 0, lowPower);
     powerGauge->reset();  // Resets MAX17043
     delay(200);  // Waits for the initial measurements to be made
-
+    Serial.println(String("MAX17043 version ") + powerGauge->getVersion());
+    Serial.println(String("MAX17043 SOC ") + 
+                   powerGauge->getSOC() + '%');
+    Serial.println(String("MAX17043 voltage ") + powerGauge->getVoltage());
     // Sets the Alert Threshold to 10% of full capacity
-    //powerGauge->setAlertThreshold(10);
-    Serial.println(String("Power Alert Threshold is set to ") + 
+    powerGauge->setAlertThreshold(10);
+    Serial.println(String("MAX17043 Power Alert Threshold is set to ") + 
                    powerGauge->getAlertThreshold() + '%');
     isPowerGaugeActive = true;
   }  
@@ -238,7 +241,7 @@ void displayDS18B20Info() {
 void setupSensors() {
   // Start the DS18B20 sensor
   sensors.begin();
-  displayDS18B20Info();
+
   delay(1000*SETUP_SENSORS_DELAY);
   setupPowerGauge();
 }
@@ -368,6 +371,8 @@ void setup() {
   
   setupSensors();
   readSensors();
+    
+  displayDS18B20Info();
 
   pinMode(BUTTON_PIN, INPUT_PULLUP);
 
