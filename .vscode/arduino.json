@@ -1,6 +1,7 @@
 {
     "configuration": "PartitionScheme=default,CPUFreq=240,FlashMode=qio,FlashFreq=80,FlashSize=4M,UploadSpeed=921600,DebugLevel=none",
     "board": "esp32:esp32:ttgo-t1",
-    "port": "COM17",
-    "output": "./build"
+    "port": "COM4",
+    "output": "./build",
+    "sketch": "ttgocode\\DS18B20\\DS18B20.ino"
 }

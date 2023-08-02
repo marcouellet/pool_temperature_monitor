@@ -212,7 +212,7 @@ class _SensorPageState extends State<SensorPage> {
                     } 
                   }
                   return HomeUI(
-                      charge: _charge,
+                      charge: _charge > 100 ? 100 : _charge,
                       waterTemperature: _waterTemp,
                       airTemperature: _airTemp,
                     );

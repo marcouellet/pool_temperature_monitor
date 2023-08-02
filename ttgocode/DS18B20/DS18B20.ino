@@ -11,13 +11,16 @@
 #include <BLE2902.h>
 
 #include <Wire.h>
-#include <LiFuelGauge.h>
+#include <MAX17043.h>
 
 #include <OneWire.h>
 #include <DallasTemperature.h>
 
 #define BUTTON_PIN GPIO_NUM_0
 #define BUTTON_PIN_BITMASK 0x000000001 // 2^1 in hex
+
+#define I2C_SDA 21
+#define I2C_SCL 15
 
 // GPIO where the DS18B20 is connected to
 const int oneWireBus = 2;
@@ -42,7 +45,6 @@ unsigned long lastButtonPress = 0;          // Time since last pressed
 const int debounceDelay = 50;               // Time between button pushes for it to register 
 bool isPowerGaugeAvailable = true;
 bool isPowerGaugeActive = false;
-bool alertLowPower = false;
 bool deviceConnected = false;
 bool delayBetweenNotificationsTimeOut = false;
 bool delayBetweenNotificationsTimerStarting = false;
@@ -55,7 +57,7 @@ int charge = 0;
 int waterTemperature;
 int airTemperature;
 
-LiFuelGauge* powerGauge;
+MAX17043 powerGauge(10);
 
 // Setup a oneWire instance to communicate with any OneWire devices
 OneWire oneWire(oneWireBus);
@@ -93,9 +95,8 @@ class MyServerCallbacks: public BLEServerCallbacks {
     }
 };
 
-void lowPower() { alertLowPower = true; }
-
 void refreshDisplay() {
+
   tft.init();
   tft.fillScreen(TFT_DARKCYAN);
   tft.setTextColor(TFT_BLACK, TFT_DARKCYAN); 
@@ -116,19 +117,30 @@ void refreshDisplay() {
   tft.drawString(chargeString, tft.width()/6, 5 * tft.height() / 8, 4);
 }
 
+bool isPowerGaugeAlert() {
+  if (isPowerGaugeAvailable) {
+    return powerGauge.isAlerting();
+  }
+  return false;
+}
+
 void setupPowerGauge() {
   if (isPowerGaugeAvailable) {
-    powerGauge = new LiFuelGauge(MAX17043, 0, lowPower);
-    powerGauge->reset();  // Resets MAX17043
-    delay(200);  // Waits for the initial measurements to be made
-    Serial.println(String("MAX17043 version ") + powerGauge->getVersion());
+    Wire.begin (I2C_SDA, I2C_SCL);
+    pinMode (I2C_SDA, INPUT_PULLUP);
+    pinMode (I2C_SCL, INPUT_PULLUP);
+    powerGauge.reset();
+    powerGauge.quickStart();
+    delay(100);
+
+    Serial.println(String("MAX17043 version ") + powerGauge.getVersion());
     Serial.println(String("MAX17043 SOC ") + 
-                   powerGauge->getSOC() + '%');
-    Serial.println(String("MAX17043 voltage ") + powerGauge->getVoltage());
+                   powerGauge.getBatteryPercentage() + '%');
+    Serial.println(String("MAX17043 voltage ") + powerGauge.getBatteryVoltage());
     // Sets the Alert Threshold to 10% of full capacity
-    powerGauge->setAlertThreshold(10);
+    powerGauge.setAlertThreshold(10);
     Serial.println(String("MAX17043 Power Alert Threshold is set to ") + 
-                   powerGauge->getAlertThreshold() + '%');
+                   powerGauge.getAlertThreshold() + '%');
     isPowerGaugeActive = true;
   }  
 }
@@ -303,7 +315,7 @@ void readTemperature() {
 void readSensors() {
   readTemperature();
   if (isPowerGaugeActive) {
-    charge = powerGauge->getSOC();
+    charge = powerGauge.getBatteryPercentage();
   }
 }
 
@@ -366,6 +378,7 @@ void displaySensorsValues() {
 }
 
 void setup() {
+  Serial.println("setup started"); 
   setCpuFrequencyMhz(cpu_freq_mhz);
   Serial.begin(115200);
   
@@ -435,10 +448,8 @@ void loop() {
       deepSleep();
   }
 
-  if (alertLowPower)
+  if (isPowerGaugeAlert())
   {
       Serial.println("Beware, Low Power!");
-      powerGauge->clearAlertInterrupt();  // Resets the ALRT pin
-      alertLowPower = false;
   }
 }
