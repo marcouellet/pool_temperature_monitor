@@ -43,7 +43,7 @@ int lastButtonState = HIGH;                 // The previous state from the butto
 int currentButtonState;                     // The current reading from the button input pin
 unsigned long lastButtonPress = 0;          // Time since last pressed 
 const int debounceDelay = 50;               // Time between button pushes for it to register 
-bool isPowerGaugeAvailable = true;
+bool isPowerGaugeAvailable = false;
 bool isPowerGaugeActive = false;
 bool deviceConnected = false;
 bool delayBetweenNotificationsTimeOut = false;
@@ -124,15 +124,32 @@ bool isPowerGaugeAlert() {
   return false;
 }
 
+void checkPowerGaugeAvailable() {
+  byte error;
+  Serial.println("Checking for MAX17043 device address ...");
+  Wire.beginTransmission(MAX17043_ADDRESS);
+  error = Wire.endTransmission();
+    if (error == 0){
+      Serial.printf("MAX17043 device found at address 0x%02X\n", MAX17043_ADDRESS);
+      isPowerGaugeAvailable = true;
+    } else if (error == 5){
+      isPowerGaugeAvailable = true;
+      Serial.printf("MAX17043 device unreachable at address 0x%02X\n", MAX17043_ADDRESS);
+    } else {
+      Serial.printf("Error %d while accessing MAX17043 device at address 0x%02X\n", error, MAX17043_ADDRESS);
+    }
+}
+
 void setupPowerGauge() {
+  Wire.begin (I2C_SDA, I2C_SCL);
+  pinMode (I2C_SDA, INPUT_PULLUP);
+  pinMode (I2C_SCL, INPUT_PULLUP);
+  Wire.setTimeOut(500);
+  checkPowerGaugeAvailable();
   if (isPowerGaugeAvailable) {
-    Wire.begin (I2C_SDA, I2C_SCL);
-    pinMode (I2C_SDA, INPUT_PULLUP);
-    pinMode (I2C_SCL, INPUT_PULLUP);
     powerGauge.reset();
     powerGauge.quickStart();
     delay(100);
-
     Serial.println(String("MAX17043 version ") + powerGauge.getVersion());
     Serial.println(String("MAX17043 SOC ") + 
                    powerGauge.getBatteryPercentage() + '%');
