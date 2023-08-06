@@ -3,24 +3,41 @@ import 'dart:async';
 import 'package:flutter_blue/flutter_blue.dart';
 import 'package:pool_temperature_monitor/config/appsettings.dart';
 
+  enum BleState {
+    connected,
+    disconnected,
+    scanning,
+    notscanning
+  }
+
 class BleUtils {
   static final FlutterBlue _flutterBlue = FlutterBlue.instance;
   static List<BluetoothDevice> _devicesList = <BluetoothDevice>[];
-  static StreamSubscription<List<BluetoothDevice>>? _connectedDevicesStreamSubscription;
-  static StreamSubscription<List<ScanResult>>? _scanResultsStreamSubscription;
-  static int _sleepdelay = AppSettings.bleLookupForDeviceRetryDelaySeconds;
-  static bool _isLookingForDevice = false;
-  static bool _isScanCancelled = false;
+  static int _sleepdelay = 0; // Do not wait when app is started
+  static BleState _blestate = BleState.disconnected;
+  static Function(BleState state)? _onStateChange;
+  static bool _isLookingForDeviceCancelled = false;
+
+  static setState(BleState state) {
+    _blestate = state;
+    if (_onStateChange != null) {
+      _onStateChange!(_blestate);
+    }
+  }
+
+  static registerOnStateChange(Function(BleState state)? onStateChange) {
+    _onStateChange = onStateChange;
+  }
 
   static initStreams() { 
-    _connectedDevicesStreamSubscription =_flutterBlue.connectedDevices
+    _flutterBlue.connectedDevices
       .asStream()
       .listen((List<BluetoothDevice> devices) async {
         for (BluetoothDevice device in devices) {
         _addDeviceTolist(device);
       }
     });  
-    _scanResultsStreamSubscription = _flutterBlue.scanResults.listen((List<ScanResult> results) {
+    _flutterBlue.scanResults.listen((List<ScanResult> results) {
       for (ScanResult result in results) {
         _addDeviceTolist(result.device);
       }
@@ -40,31 +57,35 @@ class BleUtils {
   }
 
   static void setSleepDelay(int delay) {
-    _sleepdelay = (delay / 2).round();
+    _sleepdelay = delay.round() - 30;
+    _sleepdelay = _sleepdelay > 0 ? _sleepdelay : 0;
+  }
+
+  static int scanForDeviceRetryCount() {
+    if (_sleepdelay == 0) {
+      return AppSettings.bleLookupForDeviceInitialRetriesMaximum;
+    } else {
+      return AppSettings.bleLookupForDeviceRetriesMaximum;
+    }
   }
 
   static Future<void> scanForDevices() async {
 
     _devicesList = <BluetoothDevice>[];  
-    _isScanCancelled = false;
+    _isLookingForDeviceCancelled = false;
 
-    await _flutterBlue.startScan(timeout: const Duration(seconds: AppSettings.bleDeviceScanDurationSeconds));              
+    setState(BleState.scanning);
+    await _flutterBlue.startScan(timeout: const Duration(seconds: AppSettings.bleDeviceScanDurationSeconds));
+    setState(BleState.notscanning);            
   }
 
-  static Future<void> cancelScanForDevices() async {
-    _isScanCancelled = true;
+  static Future<void> cancelLookingForDevices() async {
+    _isLookingForDeviceCancelled = true;
+    setState(BleState.notscanning); 
   }
 
-  static bool isScanCancelled() {
-    return _isScanCancelled;
-  }
-
-  static bool isScanRunning() {
-    return _connectedDevicesStreamSubscription != null || _scanResultsStreamSubscription != null;
-  }
-
-  static bool isLookingForDevice() {
-    return _isLookingForDevice;
+  static bool isLookingForDeviceCancelled() {
+    return _isLookingForDeviceCancelled;
   }
 
   static Future<BluetoothDevice?> scanForDeviceName(String deviceName) async {
@@ -73,29 +94,27 @@ class BleUtils {
   }
 
   static Future<BluetoothDevice?> lookupForDevice() async {
-    _isLookingForDevice = true;
-    _isScanCancelled = false;
+    _isLookingForDeviceCancelled = false;
     int lookupRetries = 0;
     BluetoothDevice? device;
 
-    while (device == null && !isScanCancelled() && lookupRetries < AppSettings.bleLookupForDeviceRetriesMaximum) {
+    while (device == null && !isLookingForDeviceCancelled() && lookupRetries < scanForDeviceRetryCount()) {
       if (lookupRetries == 0) {
         await Future.delayed(Duration(seconds: _sleepdelay), () async {
-          if (!isScanCancelled()) {
+          if (!isLookingForDeviceCancelled()) {
             device = await scanForDeviceName(AppSettings.bleDeviceName);
           }
         });
       } else 
       {
         await Future.delayed(const Duration(seconds: AppSettings.bleLookupForDeviceRetryDelaySeconds), () async {
-          if (!isScanCancelled()) {
+          if (!isLookingForDeviceCancelled()) {
             device = await scanForDeviceName(AppSettings.bleDeviceName);
           }
         });
       }
       lookupRetries++;
     }
-    _isLookingForDevice = false;
     return device;
   }
 }

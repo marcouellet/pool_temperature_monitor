@@ -6,4 +6,5 @@ class AppSettings {
   static const int bleDeviceScanDurationSeconds = 5;
   static const int bleLookupForDeviceRetryDelaySeconds = 5;
   static const int bleLookupForDeviceRetriesMaximum = 12;
+  static const int bleLookupForDeviceInitialRetriesMaximum = 90;
 }

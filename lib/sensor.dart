@@ -21,6 +21,7 @@ class _SensorPageState extends State<SensorPage> {
   late bool _isLookingForDevice;
   late bool _isDeviceConnected;
   late List _sleeptempchargedata;
+  late BleState _bleState;
   StreamSubscription<BluetoothDeviceState>? _deviceStateSubscription;
   BluetoothDevice? _device;
   Stream<List<int>>? _stream;
@@ -34,6 +35,8 @@ class _SensorPageState extends State<SensorPage> {
     _isReady = false;
     _isLookingForDevice = false;
     _isDeviceConnected = false;
+    _bleState = BleState.disconnected;
+    BleUtils.registerOnStateChange(_bleOnStateChanged);
     BleUtils.initStreams();
     _lookupForDevice();
   }
@@ -44,10 +47,23 @@ class _SensorPageState extends State<SensorPage> {
     super.dispose();
   }
 
+  void _bleOnStateChanged(BleState state) {
+    setState(() { _bleState = state; });
+  }
+
+  bool _isBleScanning() {
+    return _bleState == BleState.scanning;
+  }
+
   void _tryLookupForDevices() {
     if (!_isLookingForDevice) {
        _lookupForDevice();
     }
+  }
+
+  void _cancelLookingForDevices() {
+    _isLookingForDevice = false;
+    BleUtils.cancelLookingForDevices();
   }
 
   Future<void> _lookupForDevice() async {
@@ -127,10 +143,16 @@ class _SensorPageState extends State<SensorPage> {
             Container(
               padding: const EdgeInsets.all(8.0),
               child: _isLookingForDevice 
-              ? const CircularProgressIndicator(              
-                  color: Colors.white,
-                  strokeWidth: 6,
-                )
+              ? _isBleScanning() 
+                ? const CircularProgressIndicator(              
+                    color: Colors.white,
+                    strokeWidth: 6,
+                  )
+                : const Icon(
+                  Icons.pending_outlined,
+                  size: 40.0,
+                  color: Colors.white54,
+              )
               : IconButton(
                   padding: EdgeInsets.zero,
                   iconSize: 40,
@@ -152,7 +174,7 @@ class _SensorPageState extends State<SensorPage> {
                         style: TextStyle(fontSize: 24, color: Colors.red),
                       ),
                       ElevatedButton(
-                        onPressed: () => BleUtils.cancelScanForDevices(),
+                        onPressed: () => _cancelLookingForDevices(),
                         child: const Text('Cancel scan for device')),
                     ],
                   ),
@@ -185,17 +207,6 @@ class _SensorPageState extends State<SensorPage> {
                     // geting data from bluetooth
                     var currentValue = _dataParser(snapshot.data!);
                     _sleeptempchargedata = currentValue.split(",");
-                    if(_sleeptempchargedata.length == 3) {
-                      if (_sleeptempchargedata[0] != "nan") {
-                        BleUtils.setSleepDelay(int.parse('${_sleeptempchargedata[0]}'));
-                      }
-                      if (_sleeptempchargedata[1] != "nan") {
-                        _waterTemp = int.parse('${_sleeptempchargedata[1]}');
-                      }
-                      if (_sleeptempchargedata[2] != "nan") {
-                        _charge = int.parse('${_sleeptempchargedata[2]}');
-                      }
-                    } 
                     if(_sleeptempchargedata.length == 4) {
                       if (_sleeptempchargedata[0] != "nan") {
                         BleUtils.setSleepDelay(int.parse('${_sleeptempchargedata[0]}'));

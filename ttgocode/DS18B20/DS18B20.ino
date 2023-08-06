@@ -68,7 +68,7 @@ DallasTemperature sensors(&oneWire);
 // N.B. All delays are in seconds
 
 #define uS_TO_S_FACTOR 1000000ULL         /* Conversion factor for micro seconds to seconds */
-#define TIME_TO_SLEEP  60                 /* Time ESP32 will stay in deep sleep before awakening (in seconds) */
+#define TIME_TO_SLEEP  60 * 5             /* Time ESP32 will stay in deep sleep before awakening (in seconds) */
 #define TIME_TO_NOTIFY  15                /* Time ESP32 stay awaken to send notifications */
 #define TIME_TO_WAIT_BEFORE_SLEEP  5      /* Time ESP32 stay awaken before gooing to deep sleep after notification period */
 #define DELAY_BETWEEN_NOTIFICATIONS 5     /* Wait time between each notification send during notification period */
@@ -129,13 +129,11 @@ void checkPowerGaugeAvailable() {
   Serial.println("Checking for MAX17043 device address ...");
   Wire.beginTransmission(MAX17043_ADDRESS);
   error = Wire.endTransmission();
-    if (error == 0){
+    if (error == 0 || error == 5) {
       Serial.printf("MAX17043 device found at address 0x%02X\n", MAX17043_ADDRESS);
       isPowerGaugeAvailable = true;
-    } else if (error == 5){
-      isPowerGaugeAvailable = true;
-      Serial.printf("MAX17043 device unreachable at address 0x%02X\n", MAX17043_ADDRESS);
-    } else {
+    }
+    else {
       Serial.printf("Error %d while accessing MAX17043 device at address 0x%02X\n", error, MAX17043_ADDRESS);
     }
 }
@@ -144,7 +142,6 @@ void setupPowerGauge() {
   Wire.begin (I2C_SDA, I2C_SCL);
   pinMode (I2C_SDA, INPUT_PULLUP);
   pinMode (I2C_SCL, INPUT_PULLUP);
-  Wire.setTimeOut(500);
   checkPowerGaugeAvailable();
   if (isPowerGaugeAvailable) {
     powerGauge.reset();
@@ -346,7 +343,9 @@ void deepSleep() {
 
     esp_sleep_enable_ext0_wakeup(GPIO_NUM_0,0); //1 = High, 0 = Low
     esp_sleep_enable_timer_wakeup(TIME_TO_SLEEP * uS_TO_S_FACTOR);
-    Serial.println("Going to deep sleep");
+    Serial.print("Going to deep sleep for ");
+    Serial.print(TIME_TO_SLEEP);
+    Serial.println(" seconds");
     esp_deep_sleep_start();
 }
 
@@ -411,6 +410,7 @@ void setup() {
   if (wakeup_cause == ESP_SLEEP_WAKEUP_EXT0) {
     Serial.println("Wakeup caused by external signal using RTC_IO"); 
     refreshDisplay();
+    printSensorsValues();
     delay(1000*DELAY_TO_DISPLAY_SCREEN); 
     deepSleep();
   } else {
