@@ -35,7 +35,7 @@ class _SensorPageState extends State<SensorPage> {
     _isReady = false;
     _isLookingForDevice = false;
     _isDeviceConnected = false;
-    _bleState = BleState.disconnected;
+    _bleState = BleUtils.getState();
     BleUtils.registerOnStateChange(_bleOnStateChanged);
     BleUtils.initStreams();
     _lookupForDevice();
@@ -53,6 +53,10 @@ class _SensorPageState extends State<SensorPage> {
 
   bool _isBleScanning() {
     return _bleState == BleState.scanning;
+  }
+
+  bool _isBleSleeping() {
+    return _bleState == BleState.sleeping;
   }
 
   void _tryLookupForDevices() {
@@ -129,6 +133,34 @@ class _SensorPageState extends State<SensorPage> {
       }
     });
   }
+
+  Widget getBleWidget() {
+    switch (BleUtils.getState()) {
+      case BleState.scanning:
+        return const CircularProgressIndicator(              
+                    color: Colors.white,
+                    strokeWidth: 6,
+                  );
+      case BleState.idle:
+        return const Icon(
+                      Icons.done,
+                      size: 40.0,
+                      color: Colors.white54,
+                    );
+      case BleState.sleeping:
+        return const Icon(
+                      Icons.hourglass_top,
+                      size: 40.0,
+                      color: Colors.white54,
+                    );
+      case BleState.alarm:
+        return const Icon(
+                Icons.report_problem,
+                size: 40.0,
+                color: Colors.white54,
+              );         
+    }
+  }
   
   String _dataParser(List<int> dataFromDevice) {
     return utf8.decode(dataFromDevice);
@@ -142,23 +174,7 @@ class _SensorPageState extends State<SensorPage> {
           actions: <Widget>[
             Container(
               padding: const EdgeInsets.all(8.0),
-              child: _isLookingForDevice 
-              ? _isBleScanning() 
-                ? const CircularProgressIndicator(              
-                    color: Colors.white,
-                    strokeWidth: 6,
-                  )
-                : const Icon(
-                  Icons.pending_outlined,
-                  size: 40.0,
-                  color: Colors.white54,
-              )
-              : IconButton(
-                  padding: EdgeInsets.zero,
-                  iconSize: 40,
-                  icon: const Icon(Icons.sync),
-                  onPressed: () { _tryLookupForDevices(); }
-                ),
+              child: getBleWidget()
             ),
           ]
         ),

@@ -4,17 +4,17 @@ import 'package:flutter_blue/flutter_blue.dart';
 import 'package:pool_temperature_monitor/config/appsettings.dart';
 
   enum BleState {
-    connected,
-    disconnected,
+    idle,
     scanning,
-    notscanning
+    sleeping,
+    alarm
   }
 
 class BleUtils {
   static final FlutterBlue _flutterBlue = FlutterBlue.instance;
   static List<BluetoothDevice> _devicesList = <BluetoothDevice>[];
   static int _sleepdelay = 0; // Do not wait when app is started
-  static BleState _blestate = BleState.disconnected;
+  static BleState _blestate = BleState.idle;
   static Function(BleState state)? _onStateChange;
   static bool _isLookingForDeviceCancelled = false;
 
@@ -23,6 +23,10 @@ class BleUtils {
     if (_onStateChange != null) {
       _onStateChange!(_blestate);
     }
+  }
+
+  static BleState getState() {
+    return _blestate;
   }
 
   static registerOnStateChange(Function(BleState state)? onStateChange) {
@@ -76,12 +80,12 @@ class BleUtils {
 
     setState(BleState.scanning);
     await _flutterBlue.startScan(timeout: const Duration(seconds: AppSettings.bleDeviceScanDurationSeconds));
-    setState(BleState.notscanning);            
+    setState(BleState.idle);            
   }
 
   static Future<void> cancelLookingForDevices() async {
     _isLookingForDeviceCancelled = true;
-    setState(BleState.notscanning); 
+    setState(BleState.idle); 
   }
 
   static bool isLookingForDeviceCancelled() {
@@ -107,7 +111,9 @@ class BleUtils {
         });
       } else 
       {
+        setState(BleState.sleeping);
         await Future.delayed(const Duration(seconds: AppSettings.bleLookupForDeviceRetryDelaySeconds), () async {
+          setState(BleState.idle);
           if (!isLookingForDeviceCancelled()) {
             device = await scanForDeviceName(AppSettings.bleDeviceName);
           }
