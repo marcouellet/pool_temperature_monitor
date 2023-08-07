@@ -53,6 +53,9 @@ bool deepSleepRequested = false;
 bool deepSleepReady = false;
 bool buttonPressed = false;
 int notificationRepeatCount = 0;
+float voltage = 0;
+float minVoltage = 2.7;
+float minSafeVoltage = minVoltage * 1.1;
 int charge = 0;
 int waterTemperature;
 int airTemperature;
@@ -95,11 +98,15 @@ class MyServerCallbacks: public BLEServerCallbacks {
     }
 };
 
-  int toFarenheit(int celcius) {
-    double c = celcius;
-    double f = c * 9.0 / 5.0 + 32.0;
-    return (int) f;
-  }
+int toFarenheit(int celcius) {
+  double c = celcius;
+  double f = c * 9.0 / 5.0 + 32.0;
+  return (int) f;
+}
+
+bool isLowVoltage() {
+  return voltage < minSafeVoltage;
+}
 
 void refreshDisplay() {
 
@@ -340,6 +347,7 @@ void readSensors() {
   readTemperature();
   if (isPowerGaugeActive) {
     charge = powerGauge.getBatteryPercentage();
+    voltage = powerGauge.getBatteryPercentage();
   }
 }
 
@@ -367,7 +375,9 @@ void printSensorsValues() {
     Serial.print(", air temperature=");
     Serial.print(airTemperature);
     Serial.print(", charge=");
-    Serial.println(charge);
+    Serial.print(charge);
+    Serial.print(", alarm low voltage=");
+    Serial.print(isLowVoltage());
 }
 
 void notifySensorsValues() {
@@ -379,6 +389,8 @@ void notifySensorsValues() {
     str += airTemperature;
     str += ",";
     str += charge;
+    str += ",";
+    str += isLowVoltage() ? "1" : "0";
     pCharacteristic->setValue((char*)str.c_str());
     pCharacteristic->notify();
     printSensorsValues();

@@ -27,6 +27,7 @@ class _SensorPageState extends State<SensorPage> {
   int _waterTemp = 0;
   int _airTemp = 0;
   int _charge = 0;
+  int _lowVoltageAlarm = 0;
 
   @override
   void initState()  {
@@ -219,7 +220,7 @@ class _SensorPageState extends State<SensorPage> {
                     // geting data from bluetooth
                     var currentValue = _dataParser(snapshot.data!);
                     _sleeptempchargedata = currentValue.split(",");
-                    if(_sleeptempchargedata.length == 4) {
+                    if(_sleeptempchargedata.length == 5) {
                       if (_sleeptempchargedata[0] != "nan") {
                         BleUtils.setSleepDelay(int.parse('${_sleeptempchargedata[0]}'));
                       }
@@ -232,12 +233,15 @@ class _SensorPageState extends State<SensorPage> {
                       if (_sleeptempchargedata[3] != "nan") {
                         _charge = int.parse('${_sleeptempchargedata[3]}');
                       }
-                    } 
+                      if (_sleeptempchargedata[4] != "nan") {
+                        _lowVoltageAlarm = int.parse('${_sleeptempchargedata[4]}');
+                      }                   } 
                   }
                   return HomeUI(
                       charge: _charge > 100 ? 100 : _charge,
                       waterTemperature: _waterTemp,
                       airTemperature: _airTemp,
+                      lowVoltageAlarm: _lowVoltageAlarm,
                       sleepDelay: BleUtils.getSleepDelay(),
                       isLookingForDevice: _isLookingForDevice,
                     );

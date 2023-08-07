@@ -7,11 +7,12 @@ class HomeUI extends StatefulWidget {
   final int waterTemperature;
   final int airTemperature;
   final int charge;
+  final int lowVoltageAlarm;
   final int sleepDelay;
   final bool isLookingForDevice;
 
-  const HomeUI({Key? key, required this.waterTemperature,  required this.airTemperature, required this.charge,
-                required this.sleepDelay, required this.isLookingForDevice}) : super(key: key);
+  const HomeUI({Key? key, required this.waterTemperature,  required this.airTemperature, required this.charge, 
+                required this.lowVoltageAlarm, required this.sleepDelay, required this.isLookingForDevice}) : super(key: key);
   @override
   // ignore: library_private_types_in_public_api
   _HomeUIState createState() => _HomeUIState();
@@ -25,6 +26,10 @@ class _HomeUIState extends State<HomeUI> {
 
   int sleepDelay() {
     return widget.sleepDelay;
+  }
+
+  bool  isLowVoltageAlarm() {
+    return widget.lowVoltageAlarm == 1;
   }
 
   String refreshStatus() {
@@ -74,10 +79,21 @@ class _HomeUIState extends State<HomeUI> {
                     border: Border.all(color: Colors.black)),
                 width: double.infinity,
                 child: Column(
-                  children: [
-                    const SizedBox(
-                      height: 10,
-                    ),
+                  children: [                   
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        isLowVoltageAlarm() 
+                        ? const Text(
+                          'Alerte, batterie faible!',
+                            style: TextStyle(fontSize: 20.0, color: Colors.redAccent),
+                            textAlign: TextAlign.center,
+                          )
+                        : const SizedBox(
+                          height: 10,
+                        )
+                      ],
+                    ), 
                     Text(
                       'Température de l\'air ${getAirTemperatureSafeValue()} ˚C / ${toFarenheit(getAirTemperatureSafeValue())} ˚F',
                       style: const TextStyle(fontSize: 20.0, color: Colors.black),
