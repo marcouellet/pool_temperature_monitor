@@ -1,12 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:sleek_circular_slider/sleek_circular_slider.dart';
+import 'package:timer_count_down/timer_count_down.dart';
 
 class HomeUI extends StatefulWidget {
   final int waterTemperature;
   final int airTemperature;
   final int charge;
-  const HomeUI({Key? key, required this.waterTemperature,  required this.airTemperature, required this.charge}) : super(key: key);
+  final int sleepDelay;
+  final bool isLookingForDevice;
+
+  const HomeUI({Key? key, required this.waterTemperature,  required this.airTemperature, required this.charge,
+                required this.sleepDelay, required this.isLookingForDevice}) : super(key: key);
   @override
   // ignore: library_private_types_in_public_api
   _HomeUIState createState() => _HomeUIState();
@@ -14,10 +19,21 @@ class HomeUI extends StatefulWidget {
 
 class _HomeUIState extends State<HomeUI> {
 
+  bool isSleeping() {
+    return widget.isLookingForDevice;
+  }
+
+  int sleepDelay() {
+    return widget.sleepDelay;
+  }
+
+  String refreshStatus() {
+    return isSleeping() ? "Maj des données en cours..." : "Données à jour";
+  }
+
   int getWaterTemperatureSafeValue() {
     return (widget.waterTemperature < 0 || widget.waterTemperature > 100) ? 0 : widget.waterTemperature;
   }
-
 
   int getAirTemperatureSafeValue() {
     return (widget.airTemperature < 0 || widget.airTemperature > 100) ? 0 : widget.airTemperature;
@@ -141,6 +157,26 @@ class _HomeUIState extends State<HomeUI> {
                     ),
                     const SizedBox(
                       height: 20,
+                    ),
+                    Row (
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        isSleeping() && sleepDelay() > 0 ?
+                          Countdown(
+                          seconds: sleepDelay(),
+                          build: (BuildContext context, double time) => 
+                            time > 0 
+                            ? Text("Prochaine maj dans ${time.toString()} secs",
+                                    style: const TextStyle(fontSize: 20, color: Colors.blueAccent))
+                            : Text(refreshStatus(),                           
+                                    style: const TextStyle(fontSize: 20, color: Colors.blueAccent)),
+                          interval: const Duration(seconds: 1),
+                          )
+                        : Text(
+                            refreshStatus(),
+                            style: const TextStyle(fontSize: 20, color: Colors.blueAccent),
+                          ),
+                        ],
                     )
                   ],
                 ),

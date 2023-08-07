@@ -95,23 +95,33 @@ class MyServerCallbacks: public BLEServerCallbacks {
     }
 };
 
+  int toFarenheit(int celcius) {
+    double c = celcius;
+    double f = c * 9.0 / 5.0 + 32.0;
+    return (int) f;
+  }
+
 void refreshDisplay() {
 
   tft.init();
   tft.fillScreen(TFT_DARKCYAN);
   tft.setTextColor(TFT_BLACK, TFT_DARKCYAN); 
 
-  String temperatureString = "Water temp. ";
+  String temperatureString = "Eau   ";
   temperatureString += waterTemperature;
-  temperatureString += " `C";
+  temperatureString += " `C / ";
+  temperatureString += toFarenheit(waterTemperature);
+  temperatureString += " F";
   tft.drawString(temperatureString, tft.width()/6, 3 * tft.height() / 8, 4);
 
-  temperatureString = "Air temp. ";
+  temperatureString = "Air   ";
   temperatureString += airTemperature;
-  temperatureString += " `C";
+  temperatureString += " `C / ";
+  temperatureString += toFarenheit(airTemperature);
+  temperatureString += " F";
   tft.drawString(temperatureString, tft.width()/6, 4 * tft.height() / 8, 4);
 
-  String chargeString = "Charge ";
+  String chargeString = "Charge  ";
   chargeString += charge;
   chargeString += " %";
   tft.drawString(chargeString, tft.width()/6, 5 * tft.height() / 8, 4);

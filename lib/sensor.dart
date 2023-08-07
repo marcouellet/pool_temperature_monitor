@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'dart:convert' show utf8;
-
 import 'package:flutter/material.dart';
 import 'package:flutter_blue/flutter_blue.dart';
 import 'package:pool_temperature_monitor/config/appsettings.dart';
@@ -51,14 +50,6 @@ class _SensorPageState extends State<SensorPage> {
     setState(() { _bleState = state; });
   }
 
-  bool _isBleScanning() {
-    return _bleState == BleState.scanning;
-  }
-
-  bool _isBleSleeping() {
-    return _bleState == BleState.sleeping;
-  }
-
   void _tryLookupForDevices() {
     if (!_isLookingForDevice) {
        _lookupForDevice();
@@ -66,7 +57,7 @@ class _SensorPageState extends State<SensorPage> {
   }
 
   void _cancelLookingForDevices() {
-    _isLookingForDevice = false;
+     setState(() { _isLookingForDevice = false; });
     BleUtils.cancelLookingForDevices();
   }
 
@@ -106,8 +97,8 @@ class _SensorPageState extends State<SensorPage> {
 
   String _deviceTitle() {
     // ignore: unnecessary_null_comparison
-    return _device == null ? 'No device' : 
-      '${_device!.name.substring(AppSettings.bleDeviceNamePrefix.length)} Temperature Sensor';
+    return _device == null ? 'Aucun périphérique' : 
+      '${_device!.name.substring(AppSettings.bleDeviceNamePrefix.length)} Sonde de temperature';
   }
 
   _disconnectDevice() async {
@@ -135,7 +126,7 @@ class _SensorPageState extends State<SensorPage> {
   }
 
   Widget getBleWidget() {
-    switch (BleUtils.getState()) {
+    switch (_bleState) {
       case BleState.scanning:
         return const CircularProgressIndicator(              
                     color: Colors.white,
@@ -159,7 +150,12 @@ class _SensorPageState extends State<SensorPage> {
                 size: 40.0,
                 color: Colors.white54,
               );         
-    }
+      case BleState.timeout:
+        return const Icon(
+                Icons.hourglass_empty,
+                size: 40.0,
+                color: Colors.white54,
+              );      }
   }
   
   String _dataParser(List<int> dataFromDevice) {
@@ -186,12 +182,12 @@ class _SensorPageState extends State<SensorPage> {
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       const Text(
-                        "Waiting for connection...",
+                        "En attente d'une connexion...",
                         style: TextStyle(fontSize: 24, color: Colors.red),
                       ),
                       ElevatedButton(
                         onPressed: () => _cancelLookingForDevices(),
-                        child: const Text('Cancel scan for device')),
+                        child: const Text('Annuler le scan')),
                     ],
                   ),
                 )
@@ -200,12 +196,12 @@ class _SensorPageState extends State<SensorPage> {
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       const Text(
-                        "Device not reachable",
+                        "Périphérique inaccessible",
                         style: TextStyle(fontSize: 24, color: Colors.red),
                       ),
                       ElevatedButton(
                         onPressed: () => _tryLookupForDevices(),
-                        child: const Text('Retry scan for device')),
+                        child: const Text('Reprendre le scan')),
                     ],
                   ),
                 )
@@ -242,6 +238,8 @@ class _SensorPageState extends State<SensorPage> {
                       charge: _charge > 100 ? 100 : _charge,
                       waterTemperature: _waterTemp,
                       airTemperature: _airTemp,
+                      sleepDelay: BleUtils.getSleepDelay(),
+                      isLookingForDevice: _isLookingForDevice,
                     );
                 },
               )

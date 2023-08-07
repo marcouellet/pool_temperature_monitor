@@ -7,7 +7,8 @@ import 'package:pool_temperature_monitor/config/appsettings.dart';
     idle,
     scanning,
     sleeping,
-    alarm
+    alarm,
+    timeout
   }
 
 class BleUtils {
@@ -16,6 +17,7 @@ class BleUtils {
   static int _sleepdelay = 0; // Do not wait when app is started
   static BleState _blestate = BleState.idle;
   static Function(BleState state)? _onStateChange;
+  static bool _isLookingForDevice = false;
   static bool _isLookingForDeviceCancelled = false;
 
   static setState(BleState state) {
@@ -27,6 +29,10 @@ class BleUtils {
 
   static BleState getState() {
     return _blestate;
+  }
+
+  static isLookingForDevice() {
+    return _isLookingForDevice;
   }
 
   static registerOnStateChange(Function(BleState state)? onStateChange) {
@@ -58,6 +64,9 @@ class BleUtils {
 
   static List<BluetoothDevice> deviceList() {
     return _devicesList;
+  }
+  static int getSleepDelay() {
+    return _sleepdelay;
   }
 
   static void setSleepDelay(int delay) {
@@ -98,6 +107,7 @@ class BleUtils {
   }
 
   static Future<BluetoothDevice?> lookupForDevice() async {
+    _isLookingForDevice = true;
     _isLookingForDeviceCancelled = false;
     int lookupRetries = 0;
     BluetoothDevice? device;
@@ -121,6 +131,12 @@ class BleUtils {
       }
       lookupRetries++;
     }
+
+    if (device == null) {
+      setState(BleState.timeout);
+    }
+    
+    _isLookingForDevice = false;
     return device;
   }
 }

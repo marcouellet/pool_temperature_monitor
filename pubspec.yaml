@@ -37,9 +37,8 @@ dependencies:
   cupertino_icons: ^1.0.5
   sleek_circular_slider: ^2.0.1
   flutter_blue: ^0.8.0
-  shared_preferences: ^2.0.0
+  timer_count_down: ^2.2.2
   flutter_svg: ^2.0.7
-  global_configs: ^1.1.1
  
 dev_dependencies:
   flutter_test:
