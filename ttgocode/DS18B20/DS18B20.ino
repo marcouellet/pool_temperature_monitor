@@ -112,6 +112,12 @@ void refreshDisplay() {
 
   tft.init();
   tft.fillScreen(TFT_DARKCYAN);
+
+  if (isLowVoltage()) {
+    tft.setTextColor(TFT_RED, TFT_DARKCYAN); 
+    tft.drawString("Recharger la batterie!", tft.width()/8, 2 * tft.height() / 8, 4);
+  }
+
   tft.setTextColor(TFT_BLACK, TFT_DARKCYAN); 
 
   String temperatureString = "Eau   ";
@@ -377,7 +383,7 @@ void printSensorsValues() {
     Serial.print(", charge=");
     Serial.print(charge);
     Serial.print(", alarm low voltage=");
-    Serial.print(isLowVoltage());
+    Serial.println(isLowVoltage());
 }
 
 void notifySensorsValues() {
@@ -439,6 +445,7 @@ void setup() {
     if (wakeup_cause == ESP_SLEEP_WAKEUP_TIMER) {
       Serial.println("Wakeup caused by timer"); 
     }
+    setupButton();
     setupNotification();
     setupBleService(); 
   } 
