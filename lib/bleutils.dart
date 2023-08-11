@@ -70,7 +70,7 @@ class BleUtils {
   }
 
   static void setSleepDelay(int delay) {
-    _sleepdelay = delay.round() - 30;
+    _sleepdelay = delay.round();
     _sleepdelay = _sleepdelay > 0 ? _sleepdelay : 0;
   }
 

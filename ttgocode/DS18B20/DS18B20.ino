@@ -75,6 +75,7 @@ DallasTemperature sensors(&oneWire);
 #define TIME_TO_NOTIFY  15                /* Time ESP32 stay awaken to send notifications */
 #define TIME_TO_WAIT_BEFORE_SLEEP  5      /* Time ESP32 stay awaken before gooing to deep sleep after notification period */
 #define DELAY_BETWEEN_NOTIFICATIONS 5     /* Wait time between each notification send during notification period */
+#define DELAY_FOR_NOTIFICATION 2          /* Delay to ensure notification is received */
 #define DELAY_TO_DISPLAY_SCREEN 5         /* Time to keep display active */
 #define NOTIFICATION_REPEAT_COUNT_MAX  2  /* Max notifications to send during notification period */
 #define SETUP_SENSORS_DELAY  0.5          /* Max notifications to send during notification period */
@@ -115,21 +116,21 @@ void refreshDisplay() {
 
   if (isLowVoltage()) {
     tft.setTextColor(TFT_RED, TFT_DARKCYAN); 
-    tft.drawString("Recharger la batterie!", tft.width()/8, 2 * tft.height() / 8, 4);
+    tft.drawString("Recharger!", tft.width()/8, 2 * tft.height() / 8, 4);
   }
 
   tft.setTextColor(TFT_BLACK, TFT_DARKCYAN); 
 
   String temperatureString = "Eau   ";
-  temperatureString += waterTemperature;
-  temperatureString += " `C / ";
+  //temperatureString += waterTemperature;
+  //temperatureString += " `C / ";
   temperatureString += toFarenheit(waterTemperature);
   temperatureString += " F";
   tft.drawString(temperatureString, tft.width()/6, 3 * tft.height() / 8, 4);
 
   temperatureString = "Air   ";
-  temperatureString += airTemperature;
-  temperatureString += " `C / ";
+  //temperatureString += airTemperature;
+  //temperatureString += " `C / ";
   temperatureString += toFarenheit(airTemperature);
   temperatureString += " F";
   tft.drawString(temperatureString, tft.width()/6, 4 * tft.height() / 8, 4);
@@ -242,7 +243,6 @@ void setupDelayBeforeSleepTimer(int seconds) {
   timerAlarmEnable(delayBeforeSleepTimer);
   deepSleepReady = false;
 }
-
 
 void delayBetweenNotificationsTimerEnded() {
   if (!delayBetweenNotificationsTimerStarting) {
@@ -412,6 +412,7 @@ void notifySensorsValues() {
     pCharacteristic->setValue((char*)str.c_str());
     pCharacteristic->notify();
     printSensorsValues();
+    delay(1000*DELAY_FOR_NOTIFICATION); 
 }
 
 void setupButton() {
@@ -470,7 +471,6 @@ void loop() {
     buttonPressed = false;
   }
 
-
   if (deviceConnected && !notificationTimeOut && notificationRepeatCount < NOTIFICATION_REPEAT_COUNT_MAX) { 
     if (delayBetweenNotificationsTimeOut) {
       notificationRepeatCount++;
@@ -495,7 +495,6 @@ void loop() {
         } else {
           Serial.println("Device notification done");
         }
-
         setupDelayBeforeSleepTimer(TIME_TO_WAIT_BEFORE_SLEEP); 
         deepSleepRequested = true;
         Serial.println("Deep sleep requested");
