@@ -30,6 +30,7 @@ class _SensorPageState extends State<SensorPage> {
   int _airTemp = 0;
   int _charge = 0;
   int _lowVoltageAlarm = 0;
+  int _serverSleepDelay = 0;
 
   @override
   void initState()  {
@@ -90,6 +91,8 @@ class _SensorPageState extends State<SensorPage> {
     _cancelDeviceStateMonitoring();
     _deviceStateSubscription = _device!.state.listen((event) async {
       if (event == BluetoothDeviceState.disconnected) {
+        // If device is disconnected by server, set sleep delay to 0 to allow resync with client
+        BleUtils.setSleepDelay(_isDeviceConnected ? 0 : _serverSleepDelay);
         _cancelDeviceStateMonitoring();
         await _disconnectDevice();
         _tryLookupForDevices();
@@ -100,7 +103,7 @@ class _SensorPageState extends State<SensorPage> {
           _discoverServices();
         }
       }
-     });
+    });
   }
 
   String _deviceTitle() {
@@ -111,8 +114,11 @@ class _SensorPageState extends State<SensorPage> {
 
   _disconnectDevice() async {
     if (_isDeviceConnected) {
-      _isDeviceConnected = false;
+
       _isReady = false;
+      _stream = const Stream.empty();
+      _isDeviceConnected = false;
+
       await _device!.disconnect();
     }
   }
@@ -229,7 +235,7 @@ class _SensorPageState extends State<SensorPage> {
                 _sleeptempchargedata = currentValue.split(",");
                 if(_sleeptempchargedata.length == 5) {
                   if (_sleeptempchargedata[0] != "nan") {
-                    BleUtils.setSleepDelay(int.parse('${_sleeptempchargedata[0]}'));
+                    _serverSleepDelay = int.parse('${_sleeptempchargedata[0]}');
                   }
                   if (_sleeptempchargedata[1] != "nan") {
                     _waterTemp = int.parse('${_sleeptempchargedata[1]}');
