@@ -60,7 +60,7 @@ int charge = 0;
 int waterTemperature;
 int airTemperature;
 
-MAX17043 powerGauge(10);
+MAX17043 powerGauge(40);
 
 // Setup a oneWire instance to communicate with any OneWire devices
 OneWire oneWire(oneWireBus);
@@ -71,7 +71,7 @@ DallasTemperature sensors(&oneWire);
 // N.B. All delays are in seconds
 
 #define uS_TO_S_FACTOR 1000000ULL         /* Conversion factor for micro seconds to seconds */
-#define TIME_TO_SLEEP  60 * 1             /* Time ESP32 will stay in deep sleep before awakening (in seconds) */
+#define TIME_TO_SLEEP  60 * 5             /* Time ESP32 will stay in deep sleep before awakening (in seconds) */
 #define TIME_TO_NOTIFY  30                /* Time ESP32 stay awaken to send notifications */
 #define TIME_TO_WAIT_BEFORE_SLEEP  1      /* Time ESP32 stay awaken before gooing to deep sleep after notification period */
 #define DELAY_BETWEEN_NOTIFICATIONS 5     /* Wait time between each notification send during notification period */
