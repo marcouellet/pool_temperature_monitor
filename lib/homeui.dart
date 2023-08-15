@@ -146,7 +146,7 @@ class _HomeUIState extends State<HomeUI> {
                               shadowWidth: 10),
                           customColors: CustomSliderColors(
                               trackColor: HexColor('#0277bd'),
-                              progressBarColor: HexColor('#4FC3F7'),
+                              progressBarColor: isLowVoltageAlarm() ? Colors.redAccent : HexColor('#4FC3F7'),
                               shadowColor: HexColor('#B2EBF2'),
                               shadowMaxOpacity: 0.5, //);
                               shadowStep: 20),
