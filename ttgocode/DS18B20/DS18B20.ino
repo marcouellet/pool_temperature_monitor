@@ -39,10 +39,10 @@ uint8_t delayBetweenNotificationsTimerId = 2;
 uint16_t prescaler = 80;                    // Between 0 and 65 535
 uint32_t cpu_freq_mhz = 80;                 // Reduce to 80 mhz (default is 240mhz)
 int threshold = 1000000;                    // 64 bits value (limited to int size of 32bits)
-int lastButtonState = HIGH;                 // The previous state from the button input pin
-int currentButtonState;                     // The current reading from the button input pin
-unsigned long lastButtonPress = 0;          // Time since last pressed 
-const int debounceDelay = 50;               // Time between button pushes for it to register 
+//int lastButtonState = HIGH;                 // The previous state from the button input pin
+//int currentButtonState;                     // The current reading from the button input pin
+//unsigned long lastButtonPress = 0;          // Time since last pressed 
+//const int debounceDelay = 50;               // Time between button pushes for it to register 
 bool isPowerGaugeAvailable = false;
 bool isPowerGaugeActive = false;
 bool deviceConnected = false;
@@ -51,7 +51,7 @@ bool delayBetweenNotificationsTimerStarting = false;
 bool notificationTimeOut = false;
 bool deepSleepRequested = false;
 bool deepSleepReady = false;
-bool buttonPressed = false;
+//bool buttonPressed = false;
 int notificationRepeatCount = 0;
 float voltage = 0;
 float minVoltage = 2.7;
@@ -376,7 +376,12 @@ void deepSleep() {
     BLEDevice::stopAdvertising();
     Serial.println("Stopped advertising");
 
-    esp_sleep_enable_ext0_wakeup(GPIO_NUM_0,0); //1 = High, 0 = Low
+    esp_sleep_pd_config(ESP_PD_DOMAIN_RTC_PERIPH,   ESP_PD_OPTION_OFF);
+    esp_sleep_pd_config(ESP_PD_DOMAIN_RTC_SLOW_MEM, ESP_PD_OPTION_OFF);
+    esp_sleep_pd_config(ESP_PD_DOMAIN_RTC_FAST_MEM, ESP_PD_OPTION_OFF);
+    esp_sleep_pd_config(ESP_PD_DOMAIN_XTAL,         ESP_PD_OPTION_OFF);
+    
+    //esp_sleep_enable_ext0_wakeup(GPIO_NUM_0,0); //1 = High, 0 = Low
     esp_sleep_enable_timer_wakeup(TIME_TO_SLEEP * uS_TO_S_FACTOR);
     Serial.print("Going to deep sleep for ");
     Serial.print(TIME_TO_SLEEP);
@@ -413,18 +418,18 @@ void notifySensorsValues() {
     printSensorsValues();
 }
 
-void setupButton() {
-  pinMode(BUTTON_PIN, INPUT_PULLUP);
-  attachInterrupt(digitalPinToInterrupt(BUTTON_PIN), handleButtonPress, CHANGE);
-}
+// void setupButton() {
+//   pinMode(BUTTON_PIN, INPUT_PULLUP);
+//   attachInterrupt(digitalPinToInterrupt(BUTTON_PIN), handleButtonPress, CHANGE);
+// }
 
-void handleButtonPress() {
-  currentButtonState = digitalRead(BUTTON_PIN);
-  if(lastButtonState == HIGH && currentButtonState == LOW  && millis() - lastButtonPress > debounceDelay) {
-    buttonPressed = true;
-  }
-  lastButtonState = currentButtonState;
-}
+// void handleButtonPress() {
+//   currentButtonState = digitalRead(BUTTON_PIN);
+//   if(lastButtonState == HIGH && currentButtonState == LOW  && millis() - lastButtonPress > debounceDelay) {
+//     buttonPressed = true;
+//   }
+//   lastButtonState = currentButtonState;
+// }
 
 void displaySensorsValues() {
   refreshDisplay();
@@ -442,32 +447,32 @@ void setup() {
     
   displayDS18B20Info();
 
-  pinMode(BUTTON_PIN, INPUT_PULLUP);
+  // pinMode(BUTTON_PIN, INPUT_PULLUP);
 
    esp_sleep_wakeup_cause_t wakeup_cause = esp_sleep_get_wakeup_cause();
 
-  if (wakeup_cause == ESP_SLEEP_WAKEUP_EXT0) {
-    Serial.println("Wakeup caused by external signal using RTC_IO"); 
-    refreshDisplay();
-    printSensorsValues();
-    delay(1000*DELAY_TO_DISPLAY_SCREEN); 
-    deepSleep();
-  } else {
+  // if (wakeup_cause == ESP_SLEEP_WAKEUP_EXT0) {
+  //   Serial.println("Wakeup caused by external signal using RTC_IO"); 
+  //   refreshDisplay();
+  //   printSensorsValues();
+  //   delay(1000*DELAY_TO_DISPLAY_SCREEN); 
+  //   deepSleep();
+  // } else {
     if (wakeup_cause == ESP_SLEEP_WAKEUP_TIMER) {
       Serial.println("Wakeup caused by timer"); 
     }
-    setupButton();
+    // setupButton();
     setupNotification();
     setupBleService(); 
-  } 
+//  } 
 }
 
 void loop() {
 
-  if (buttonPressed) {
-    displaySensorsValues();
-    buttonPressed = false;
-  }
+  // if (buttonPressed) {
+  //   displaySensorsValues();
+  //   buttonPressed = false;
+  // }
 
   if (deviceConnected && !notificationTimeOut && notificationRepeatCount < NOTIFICATION_REPEAT_COUNT_MAX) { 
     if (delayBetweenNotificationsTimeOut) {

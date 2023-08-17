@@ -260,7 +260,7 @@ class _SensorPageState extends State<SensorPage> {
                 waterTemperature: _waterTemp,
                 airTemperature: _airTemp,
                 lowVoltageAlarm: _lowVoltageAlarm,
-                sleepDelay: BleUtils.getSleepDelay(),
+                sleepDelay: _serverSleepDelay,
                 isLookingForDevice: _isLookingForDevice,
               );
           },
