@@ -8,4 +8,5 @@ class AppSettings {
   static const int bleLookupForDeviceRetryDelaySeconds = 5;
   static const int bleLookupForDeviceRetriesMaximum = 12;
   static const int bleLookupForDeviceInitialRetriesMaximum = 90;
+  static const int bleDelayBeforeServerDisconnect = 5;
 }

@@ -92,7 +92,7 @@ class _SensorPageState extends State<SensorPage> {
     _deviceStateSubscription = _device!.state.listen((event) async {
       if (event == BluetoothDeviceState.disconnected) {
         // If device is disconnected by server, set sleep delay to 0 to allow resync with client
-        BleUtils.setSleepDelay(_isDeviceConnected ? 0 : _serverSleepDelay);
+        BleUtils.setSleepDelay(_isDeviceConnected ? 0 : _serverSleepDelay + AppSettings.bleDelayBeforeServerDisconnect);
         _cancelDeviceStateMonitoring();
         await _disconnectDevice();
         _tryLookupForDevices();
@@ -260,7 +260,7 @@ class _SensorPageState extends State<SensorPage> {
                 waterTemperature: _waterTemp,
                 airTemperature: _airTemp,
                 lowVoltageAlarm: _lowVoltageAlarm,
-                sleepDelay: _serverSleepDelay,
+                sleepDelay: BleUtils.getSleepDelay(),
                 isLookingForDevice: _isLookingForDevice,
               );
           },

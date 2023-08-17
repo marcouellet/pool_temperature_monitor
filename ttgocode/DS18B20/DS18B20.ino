@@ -73,7 +73,7 @@ DallasTemperature sensors(&oneWire);
 #define uS_TO_S_FACTOR 1000000ULL         /* Conversion factor for micro seconds to seconds */
 #define TIME_TO_SLEEP  60 * 5             /* Time ESP32 will stay in deep sleep before awakening (in seconds) */
 #define TIME_TO_NOTIFY  30                /* Time ESP32 stay awaken to send notifications */
-#define TIME_TO_WAIT_BEFORE_SLEEP  1      /* Time ESP32 stay awaken before gooing to deep sleep after notification period */
+#define TIME_TO_WAIT_BEFORE_SLEEP  5      /* Time ESP32 stay awaken before gooing to deep sleep after notification period */
 #define DELAY_BETWEEN_NOTIFICATIONS 5     /* Wait time between each notification send during notification period */
 #define DELAY_TO_DISPLAY_SCREEN 5         /* Time to keep display active */
 #define NOTIFICATION_REPEAT_COUNT_MAX  2  /* Max notifications to send during notification period */
