@@ -36,8 +36,13 @@ BLECharacteristic* pCharacteristic = NULL;
 uint8_t notificationTimerId = 0;
 uint8_t delayBeforeSleepTimerId = 1;
 uint8_t delayBetweenNotificationsTimerId = 2;
+uint32_t Freq = 0;
+const int maxbauds = 115200;
+int my_bauds;
+int cpufreqs[6] = {240, 160, 80, 40, 20, 10};
+//int i = 0;
 uint16_t prescaler = 80;                    // Between 0 and 65 535
-uint32_t cpu_freq_mhz = 80;                 // Reduce to 80 mhz (default is 240mhz)
+uint32_t cpu_freq_mhz = 80;                 // Reduce to 80 mhz (default is 240mhz) - TRIED BELOW 80 BUT NOT WORKING
 int threshold = 1000000;                    // 64 bits value (limited to int size of 32bits)
 //int lastButtonState = HIGH;                 // The previous state from the button input pin
 //int currentButtonState;                     // The current reading from the button input pin
@@ -59,6 +64,7 @@ float minSafeVoltage = minVoltage * 1.1;
 int charge = 0;
 int waterTemperature;
 int airTemperature;
+bool disableTraceDisplay = false;
 
 MAX17043 powerGauge(40);
 
@@ -69,7 +75,6 @@ OneWire oneWire(oneWireBus);
 DallasTemperature sensors(&oneWire);
 
 // N.B. All delays are in seconds
-
 #define uS_TO_S_FACTOR 1000000ULL         /* Conversion factor for micro seconds to seconds */
 #define TIME_TO_SLEEP  60 * 5             /* Time ESP32 will stay in deep sleep before awakening (in seconds) */
 #define TIME_TO_NOTIFY  30                /* Time ESP32 stay awaken to send notifications */
@@ -85,15 +90,27 @@ DallasTemperature sensors(&oneWire);
 #define SERVICE_UUID        "4fafc201-1fb5-459e-8fcc-c5c9c331914b"
 #define CHARACTERISTIC_UUID "beb5483e-36e1-4688-b7f5-ea07361b26a8"
 
+void trace(char * str) {
+  if (!disableTraceDisplay) {
+    Serial.print(str);
+  }
+}
+
+void traceln(char * str) {
+   if (!disableTraceDisplay) {
+    Serial.println(str);
+  } 
+}
+
 class MyServerCallbacks: public BLEServerCallbacks {
     void onConnect(BLEServer* pServer) {
-      Serial.println("Device connected"); 
+      traceln("Device connected"); 
       deviceConnected = true;
       BLEDevice::startAdvertising();
     };
 
     void onDisconnect(BLEServer* pServer) {
-      Serial.println("Device disconnected"); 
+      traceln("Device disconnected"); 
       deviceConnected = false;
     }
 };
@@ -149,15 +166,18 @@ bool isPowerGaugeAlert() {
 
 void checkPowerGaugeAvailable() {
   byte error;
-  Serial.println("Checking for MAX17043 device address ...");
+  char str[50];
+  traceln("Checking for MAX17043 device address ...");
   Wire.beginTransmission(MAX17043_ADDRESS);
   error = Wire.endTransmission();
     if (error == 0 || error == 5) {
-      Serial.printf("MAX17043 device found at address 0x%02X\n", MAX17043_ADDRESS);
+      sprintf(str, "MAX17043 device found at address 0x%02X", MAX17043_ADDRESS);
+      traceln(str);
       isPowerGaugeAvailable = true;
     }
     else {
-      Serial.printf("Error %d while accessing MAX17043 device at address 0x%02X\n", error, MAX17043_ADDRESS);
+      sprintf(str, "Error %d while accessing MAX17043 device at address 0x%02X", error, MAX17043_ADDRESS);
+      traceln(str);
     }
 }
 
@@ -167,17 +187,20 @@ void setupPowerGauge() {
   pinMode (I2C_SCL, INPUT_PULLUP);
   checkPowerGaugeAvailable();
   if (isPowerGaugeAvailable) {
+    char str[50];
     powerGauge.reset();
     powerGauge.quickStart();
     delay(100);
-    Serial.println(String("MAX17043 version ") + powerGauge.getVersion());
-    Serial.println(String("MAX17043 SOC ") + 
-                   powerGauge.getBatteryPercentage() + '%');
-    Serial.println(String("MAX17043 voltage ") + powerGauge.getBatteryVoltage());
+    sprintf(str, "MAX17043 version %d", powerGauge.getVersion());
+    traceln(str);
+    sprintf(str, "MAX17043 SOC %d %", powerGauge.getBatteryVoltage());
+    traceln(str);
+    sprintf(str, "MAX17043 voltage %d", powerGauge.getBatteryVoltage());
+    traceln(str);
     // Sets the Alert Threshold to 10% of full capacity
     powerGauge.setAlertThreshold(10);
-    Serial.println(String("MAX17043 Power Alert Threshold is set to ") + 
-                   powerGauge.getAlertThreshold() + '%');
+    sprintf(str, "MAX17043 Power Alert Threshold is set to %d %", powerGauge.getAlertThreshold());
+    traceln(str);
     isPowerGaugeActive = true;
   }  
 }
@@ -280,10 +303,9 @@ void setupDelayBetweenNotificationsTimer(int seconds) {
 }
 
 void displayDS18B20Info() {
-  uint8_t deviceCount = sensors.getDeviceCount();
-  String str = "DS18B20 devices count=";
-  str+= deviceCount;
-  Serial.println(str);
+  char str[50];
+  sprintf(str, "DS18B20 devices count=%d", sensors.getDeviceCount());
+  traceln(str);
 }
 
 void setupSensors() {
@@ -339,7 +361,7 @@ void setupBleService() {
   pAdvertising->setScanResponse(false);
   pAdvertising->setMinPreferred(0x0);  // set value to 0x00 to not advertise this parameter
   BLEDevice::startAdvertising();
-  Serial.println("Waiting a client connection to notify...");
+  traceln("Waiting a client connection to notify...");
 }
 
 void readTemperature() {
@@ -369,12 +391,13 @@ void readSensors() {
 }
 
 void deepSleep() {
+    char str[50];
     deepSleepRequested = false;
     deepSleepReady = false;
-    Serial.println("Prepare to deep sleep"); 
+    traceln("Prepare to deep sleep"); 
 
     BLEDevice::stopAdvertising();
-    Serial.println("Stopped advertising");
+    traceln("Stopped advertising");
 
     esp_sleep_pd_config(ESP_PD_DOMAIN_RTC_PERIPH,   ESP_PD_OPTION_OFF);
     esp_sleep_pd_config(ESP_PD_DOMAIN_RTC_SLOW_MEM, ESP_PD_OPTION_OFF);
@@ -383,23 +406,18 @@ void deepSleep() {
     
     //esp_sleep_enable_ext0_wakeup(GPIO_NUM_0,0); //1 = High, 0 = Low
     esp_sleep_enable_timer_wakeup(TIME_TO_SLEEP * uS_TO_S_FACTOR);
-    Serial.print("Going to deep sleep for ");
-    Serial.print(TIME_TO_SLEEP);
-    Serial.println(" seconds");
+
+    sprintf(str, "Going to deep sleep for %d seconds", TIME_TO_SLEEP);
+    traceln(str);
+
     esp_deep_sleep_start();
 }
 
 void printSensorsValues() {
-    Serial.print("Notify values: sleep delay=");
-    Serial.print(TIME_TO_SLEEP); 
-    Serial.print(", water temperature=");
-    Serial.print(waterTemperature);
-    Serial.print(", air temperature=");
-    Serial.print(airTemperature);
-    Serial.print(", charge=");
-    Serial.print(charge);
-    Serial.print(", alarm low voltage=");
-    Serial.println(isLowVoltage());
+    char str[150];
+    sprintf(str, "Notify values: sleep delay=%d seconds, water temperature=%d, air temperature=%d, charge=%d, alarm low voltage=%d", 
+            TIME_TO_SLEEP, waterTemperature, airTemperature, charge, isLowVoltage());
+    traceln(str);
 }
 
 void notifySensorsValues() {
@@ -438,10 +456,34 @@ void displaySensorsValues() {
 }
 
 void setup() {
-  Serial.println("setup started"); 
+  char str[50];
+
   setCpuFrequencyMhz(cpu_freq_mhz);
-  Serial.begin(115200);
-  
+
+  Freq = getCpuFrequencyMhz();
+  if (Freq < 80) {
+    my_bauds = 80 / Freq * maxbauds;
+  }
+  else {
+    my_bauds = maxbauds;
+  }
+
+  disableTraceDisplay = my_bauds > maxbauds;
+
+  Serial.begin(my_bauds);        // Attention dépend de la frequence CPU si elle est <80Mhz 
+  delay(500);
+
+  traceln("Setup started");
+
+  sprintf(str, "Baud rate = %d seconds", my_bauds);
+  traceln(str);
+  sprintf(str, "CPU Freq = %d Mhz", Freq);
+  traceln(str);
+  sprintf(str, "XTAL Freq = %d Mhz", getXtalFrequencyMhz());
+  traceln(str);
+  sprintf(str, "APB Freq = %d Hz",  getApbFrequency());
+  traceln(str);
+
   setupSensors();
   readSensors();
     
@@ -459,7 +501,7 @@ void setup() {
   //   deepSleep();
   // } else {
     if (wakeup_cause == ESP_SLEEP_WAKEUP_TIMER) {
-      Serial.println("Wakeup caused by timer"); 
+      traceln("Wakeup caused by timer"); 
     }
     // setupButton();
     setupNotification();
@@ -478,7 +520,7 @@ void loop() {
     if (delayBetweenNotificationsTimeOut) {
       notificationRepeatCount++;
       notifySensorsValues();
-      Serial.println("Device notified");  
+      traceln("Device notified");  
     }
     if (notificationRepeatCount == 0 && isDelayBetweenNotificationsTimerInactive()) {
       delayBetweenNotificationsTimeOut = true; // No delay for first notification   
@@ -494,13 +536,13 @@ void loop() {
 
       if (!deepSleepRequested) {
         if (notificationTimeOut) {
-          Serial.println("Device notification timeout");     
+          traceln("Device notification timeout");     
         } else {
-          Serial.println("Device notification done");
+          traceln("Device notification done");
         }
         setupDelayBeforeSleepTimer(TIME_TO_WAIT_BEFORE_SLEEP); 
         deepSleepRequested = true;
-        Serial.println("Deep sleep requested");
+        traceln("Deep sleep requested");
       }
   }
 
@@ -510,6 +552,6 @@ void loop() {
 
   if (isPowerGaugeAlert())
   {
-      Serial.println("Beware, Low Power!");
+      traceln("Beware, Low Power!");
   }
 }
