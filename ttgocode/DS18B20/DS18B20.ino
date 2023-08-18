@@ -42,7 +42,7 @@ int my_bauds;
 int cpufreqs[6] = {240, 160, 80, 40, 20, 10};
 //int i = 0;
 uint16_t prescaler = 80;                    // Between 0 and 65 535
-uint32_t cpu_freq_mhz = 80;                 // Reduce to 80 mhz (default is 240mhz) - TRIED BELOW 80 BUT NOT WORKING
+uint32_t cpu_freq_mhz = 80;                 // Reduce to 80 mhz (default is 240mhz) - TRIED BELOW 80 BUT WIFI NOT WORKING BELOW 80 MHZ
 int threshold = 1000000;                    // 64 bits value (limited to int size of 32bits)
 //int lastButtonState = HIGH;                 // The previous state from the button input pin
 //int currentButtonState;                     // The current reading from the button input pin
